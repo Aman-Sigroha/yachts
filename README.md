@@ -25,7 +25,7 @@ A Node.js TypeScript server that syncs yacht data from the NauSYS API to a local
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd server
+   cd yachts
    ```
 
 2. **Install dependencies**
