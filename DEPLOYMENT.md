@@ -190,3 +190,45 @@ To deploy updates:
 4. **Set up SSL certificate** for HTTPS (recommended)
 5. **Configure firewall** to allow port 3000
 6. **Set up monitoring** and alerting
+7. **Configure automated data sync** (see Automated Sync section below)
+
+## 🔄 Automated Data Synchronization
+
+### Setup Automated Sync
+
+After deployment, set up automatic data synchronization:
+
+```bash
+# SSH into your server
+ssh -i nautio.pem ubuntu@3.69.225.186
+
+# Navigate to application directory
+cd /home/ubuntu/yacht-api
+
+# Add cron job for daily sync at 2 AM UTC
+(crontab -l 2>/dev/null; echo "0 2 * * * cd /home/ubuntu/yacht-api && node dist/scripts/sync.js >> logs/cron-sync.log 2>&1") | crontab -
+
+# Verify cron job is set
+crontab -l
+```
+
+### Automated Sync Benefits
+
+- ✅ **24/7 Data Freshness**: Automatically syncs every 24 hours
+- ✅ **Server Independent**: Runs even when your laptop is off
+- ✅ **Conflict Resolution**: Automatically cleans up invoice data before each sync
+- ✅ **Comprehensive Logging**: All sync activity logged to `logs/cron-sync.log`
+- ✅ **Zero Maintenance**: Fully automated after setup
+
+### Monitor Automated Sync
+
+```bash
+# Check sync logs
+tail -f logs/cron-sync.log
+
+# View cron job status
+crontab -l
+
+# Manual sync test
+node dist/scripts/sync.js
+```

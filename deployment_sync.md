@@ -127,6 +127,7 @@ mongosh yaacht --eval "
 - **Multi-language support** (EN, DE, FR, IT, ES, HR)
 - **Data validation** and error handling
 - **Duplicate prevention** and updates
+- **Smart conflict resolution** - Automatic invoice collection cleanup before each sync
 
 ---
 
@@ -235,14 +236,29 @@ mongosh yaacht --eval "
 mongosh yaacht --eval "
   db.yachts.find().sort({_id: -1}).limit(1).forEach(printjson)
 "
+
+### **Monitor Automated Sync**
+```bash
+# Check automated sync logs
+tail -f logs/cron-sync.log
+
+# View cron job status
+crontab -l
+
+# Check last automated sync time
+ls -la logs/cron-sync.log
+```
 ```
 
 ---
 
 ## ⚡ **Automated Sync Options**
 
-### **Option 1: Cron Job (Recommended)**
+### **Option 1: Cron Job (Recommended) - CURRENTLY ACTIVE**
 ```bash
+# View current cron job
+crontab -l
+
 # Edit crontab
 crontab -e
 
@@ -252,6 +268,8 @@ crontab -e
 # Add weekly sync on Sundays at 3 AM UTC
 0 3 * * 0 cd /home/ubuntu/yacht-api && node dist/scripts/sync.js >> logs/weekly-sync.log 2>&1
 ```
+
+**Current Status**: ✅ **ACTIVE** - Daily sync at 2 AM UTC is configured and running
 
 ### **Option 2: systemd Timer**
 ```bash
@@ -393,6 +411,6 @@ htop
 
 ---
 
-*Last Updated: 2025-08-11*
-*Sync Guide Version: 1.0.0*
-*Status: PRODUCTION READY*
+*Last Updated: 2025-01-27*
+*Sync Guide Version: 2.0.0*
+*Status: PRODUCTION READY WITH AUTOMATED SYNC*

@@ -10,7 +10,7 @@ A robust **Node.js/TypeScript** backend service that synchronizes yacht charter 
 
 ## ✨ Features
 
-- 🔄 **Data Synchronization**: Automated sync from Nausys API to local MongoDB
+- 🔄 **Automated Data Synchronization**: 24-hour automated sync from Nausys API to local MongoDB
 - 🚀 **REST API**: Complete CRUD operations for all yacht charter entities
 - 📊 **Advanced Filtering**: Multi-parameter filtering and search capabilities
 - 📈 **Statistics & Analytics**: Built-in aggregation endpoints for business insights
@@ -19,6 +19,7 @@ A robust **Node.js/TypeScript** backend service that synchronizes yacht charter 
 - 📋 **Centralized Logging**: Winston-based logging with file and console output
 - 🛡️ **Error Handling**: Comprehensive error handling and validation
 - 🔧 **TypeScript**: Full type safety and modern development experience
+- ⚡ **Smart Conflict Resolution**: Automatic invoice collection cleanup before each sync
 
 ## 🏗️ Architecture
 
@@ -94,6 +95,7 @@ npm start
 
 ### 4. Data Synchronization
 
+#### Manual Sync
 Sync all data from Nausys API to MongoDB:
 
 ```bash
@@ -105,8 +107,23 @@ This will sequentially sync:
 - 🚤 **Yachts & Models**: Complete yacht information and specifications
 - 📅 **Reservations**: Booking data and occupancy information
 - 👥 **Crew**: Staff information (requires security code)
-- 💰 **Invoices**: Base, agency, and owner invoices
+- 💰 **Invoices**: Base, agency, and owner invoices (with automatic conflict resolution)
 - 👤 **Contacts**: Customer and partner information
+
+#### Automated Sync (Production)
+The system automatically syncs data every 24 hours at 2 AM UTC using cron jobs:
+
+```bash
+# Cron job runs automatically
+0 2 * * * cd /home/ubuntu/yacht-api && node dist/scripts/sync.js >> logs/cron-sync.log 2>&1
+```
+
+**Benefits:**
+- ✅ **Always Fresh Data**: Your API stays updated 24/7
+- ✅ **Server Independent**: Runs even when your laptop is off
+- ✅ **Conflict Free**: Automatically cleans up invoice data before each sync
+- ✅ **Logging**: All sync activity logged to `logs/cron-sync.log`
+- ✅ **Zero Maintenance**: Fully automated after initial setup
 
 ## 📚 API Documentation
 
@@ -302,6 +319,21 @@ src/
    
    # Or kill existing process
    lsof -ti:3000 | xargs kill -9
+   ```
+
+4. **Automated Sync Issues**
+   ```bash
+   # Check cron job status
+   crontab -l
+   
+   # Check sync logs
+   tail -f logs/cron-sync.log
+   
+   # Manually trigger sync
+   node dist/scripts/sync.js
+   
+   # Restart cron service if needed
+   sudo service cron restart
    ```
 
 4. **TypeScript Compilation Errors**

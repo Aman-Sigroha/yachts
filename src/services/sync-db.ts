@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { connectDB } from '../db/connection';
 import * as api from '../sync';
 import { Base, Country, Equipment, YachtCategory, Service, YachtBuilder, CharterCompany } from '../models/catalogue';
@@ -409,7 +410,7 @@ export const syncInvoiceData = async () => {
                     const result = await Invoice.findOneAndUpdate(
                         { id: invoice.id },
                         {
-                            id: parseInt(invoice.number.split('/')[0]),
+                            id: invoice.id, // Use the original invoice ID from API
                             invoiceType: type,
                             number: invoice.number,
                             date: new Date(invoice.date),
@@ -426,8 +427,8 @@ export const syncInvoiceData = async () => {
                                 country: invoice.clientcountry,
                                 vatNr: invoice.client2.vatNr
                             },
-                            items: invoice.items.items.map((item: any) => ({
-                                id: parseInt(item.ident.split('-')[2]),
+                            items: invoice.items.items.map((item: any, index: number) => ({
+                                id: Date.now() + index, // Generate unique item ID using timestamp
                                 description: item.identname,
                                 quantity: toNumber(item.quantity),
                                 price: toNumber(item.singlepricewithouttax),
@@ -485,6 +486,16 @@ export const syncContactData = async () => {
 export const syncAllData = async () => {
     try {
         console.log('Starting full data sync...');
+        
+        // Drop invoice collection before sync to prevent conflicts
+        try {
+            if (mongoose.connection.db) {
+                await mongoose.connection.db.collection('invoices').drop();
+                console.log('Invoice collection dropped successfully');
+            }
+        } catch (error) {
+            console.log('Invoice collection already dropped or does not exist');
+        }
         
         await syncCatalogueData();
         await syncYachtData();
