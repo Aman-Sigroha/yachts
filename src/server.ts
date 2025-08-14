@@ -10,6 +10,7 @@ import invoiceRoutes from './routes/invoice.routes';
 import yachtRoutes from './routes/yacht.routes';
 import reservationRoutes from './routes/reservation.routes';
 import contactRoutes from './routes/contact.routes';
+import catalogueRoutes from './routes/catalogue.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -61,6 +62,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/yachts', yachtRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/contacts', contactRoutes);
+app.use('/api/catalogue', catalogueRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

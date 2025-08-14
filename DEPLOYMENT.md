@@ -168,11 +168,18 @@ sudo systemctl status yacht-api
 2. Check MONGO_URI in .env file
 3. Verify network connectivity
 
+### If Yacht API returns empty data:
+1. **Check if data exists**: `curl http://localhost:3000/api/yachts/debug/collection-info`
+2. **Search for actual yacht names**: Use names that exist in your database
+3. **Test without filters**: `curl http://localhost:3000/api/yachts`
+4. **Check sync status**: Ensure data has been synchronized from Nausys API
+
 ## 📊 Monitoring
 
 - **Service Status**: `sudo systemctl status yacht-api`
 - **Real-time Logs**: `sudo journalctl -u yacht-api -f`
 - **API Health**: `curl http://localhost:3000/api/yachts`
+- **Data Status**: `curl http://localhost:3000/api/yachts/debug/collection-info`
 
 ## 🔄 Updating the Application
 
@@ -191,6 +198,8 @@ To deploy updates:
 5. **Configure firewall** to allow port 3000
 6. **Set up monitoring** and alerting
 7. **Configure automated data sync** (see Automated Sync section below)
+8. **Test yacht search and filtering** with real data
+9. **Verify catalogue endpoints** for frontend integration
 
 ## 🔄 Automated Data Synchronization
 
@@ -204,6 +213,9 @@ ssh -i nautio.pem ubuntu@3.69.225.186
 
 # Navigate to application directory
 cd /home/ubuntu/yacht-api
+
+# Create logs directory
+mkdir -p logs
 
 # Add cron job for daily sync at 2 AM UTC
 (crontab -l 2>/dev/null; echo "0 2 * * * cd /home/ubuntu/yacht-api && node dist/scripts/sync.js >> logs/cron-sync.log 2>&1") | crontab -
@@ -219,6 +231,7 @@ crontab -l
 - ✅ **Conflict Resolution**: Automatically cleans up invoice data before each sync
 - ✅ **Comprehensive Logging**: All sync activity logged to `logs/cron-sync.log`
 - ✅ **Zero Maintenance**: Fully automated after setup
+- ✅ **Invoice Cleanup**: Prevents duplicate key errors by dropping collection before sync
 
 ### Monitor Automated Sync
 
@@ -231,4 +244,130 @@ crontab -l
 
 # Manual sync test
 node dist/scripts/sync.js
+
+# Check data after sync
+curl http://localhost:3000/api/yachts/debug/collection-info
 ```
+
+## 🚤 Testing Your Deployed API
+
+### 1. Test Basic Connectivity
+```bash
+# Check if service is running
+curl http://localhost:3000/api/yachts
+
+# Check data status
+curl http://localhost:3000/api/yachts/debug/collection-info
+```
+
+### 2. Test Yacht Search
+```bash
+# Search by yacht name (use actual names from your data)
+curl "http://localhost:3000/api/yachts?q=Blue"
+
+# Filter by cabins
+curl "http://localhost:3000/api/yachts?minCabins=4&maxCabins=8"
+
+# Combined search and filter
+curl "http://localhost:3000/api/yachts?q=Maria&minCabins=4&sortBy=cabins&sortOrder=desc"
+```
+
+### 3. Test Catalogue Endpoints
+```bash
+# Get all filter options
+curl http://localhost:3000/api/catalogue/filters
+
+# Get active filters only
+curl http://localhost:3000/api/catalogue/filters/active
+
+# Get specific catalogue data
+curl http://localhost:3000/api/catalogue/categories/active
+curl http://localhost:3000/api/catalogue/builders/active
+curl http://localhost:3000/api/catalogue/bases/active
+```
+
+### 4. Test Other Endpoints
+```bash
+# Reservations
+curl http://localhost:3000/api/reservations
+
+# Invoices
+curl http://localhost:3000/api/invoices
+
+# Contacts
+curl http://localhost:3000/api/contacts
+```
+
+## 🔍 Debugging Deployed API
+
+### Check Service Status
+```bash
+sudo systemctl status yacht-api
+sudo journalctl -u yacht-api -f
+```
+
+### Check Data Synchronization
+```bash
+# View sync logs
+tail -f logs/cron-sync.log
+
+# Check if data exists
+curl http://localhost:3000/api/yachts/debug/collection-info
+
+# Test specific yacht retrieval
+curl http://localhost:3000/api/yachts/debug/yacht/1
+```
+
+### Common Deployment Issues
+
+1. **Port Already in Use**
+   ```bash
+   # Check what's using port 3000
+   sudo lsof -i :3000
+   
+   # Kill the process if needed
+   sudo kill -9 <PID>
+   ```
+
+2. **Permission Issues**
+   ```bash
+   # Fix file permissions
+   sudo chown -R ubuntu:ubuntu /home/ubuntu/yacht-api
+   chmod 755 /home/ubuntu/yacht-api
+   ```
+
+3. **MongoDB Connection Issues**
+   ```bash
+   # Check MongoDB status
+   sudo systemctl status mongod
+   
+   # Start MongoDB if not running
+   sudo systemctl start mongod
+   ```
+
+## 📈 Performance Monitoring
+
+### Check API Response Times
+```bash
+# Test response time
+time curl http://localhost:3000/api/yachts
+
+# Check with filters
+time curl "http://localhost:3000/api/yachts?minCabins=4"
+```
+
+### Monitor Resource Usage
+```bash
+# Check memory usage
+ps aux | grep node
+
+# Check disk usage
+df -h
+
+# Check log file sizes
+ls -lh logs/
+```
+
+---
+
+**Last updated: August 2025 - Deployment guide for API v3.0 with working yacht search, active filters, and comprehensive catalogue system**

@@ -12,7 +12,8 @@ A robust **Node.js/TypeScript** backend service that synchronizes yacht charter 
 
 - 🔄 **Automated Data Synchronization**: 24-hour automated sync from Nausys API to local MongoDB
 - 🚀 **REST API**: Complete CRUD operations for all yacht charter entities
-- 📊 **Advanced Filtering**: Multi-parameter filtering and search capabilities
+- 📊 **Advanced Filtering & Search**: Multi-parameter filtering, text search, and pagination
+- 🎯 **Smart Catalogue System**: Active filters that only show options with available yachts
 - 📈 **Statistics & Analytics**: Built-in aggregation endpoints for business insights
 - 🔒 **Rate Limiting**: API protection with configurable request limits
 - 📝 **Auto Documentation**: Swagger/OpenAPI documentation with JSDoc
@@ -20,6 +21,7 @@ A robust **Node.js/TypeScript** backend service that synchronizes yacht charter 
 - 🛡️ **Error Handling**: Comprehensive error handling and validation
 - 🔧 **TypeScript**: Full type safety and modern development experience
 - ⚡ **Smart Conflict Resolution**: Automatic invoice collection cleanup before each sync
+- 🌍 **Multi-language Support**: Text fields in EN, DE, FR, IT, ES, HR languages
 
 ## 🏗️ Architecture
 
@@ -143,21 +145,79 @@ http://localhost:3000/api
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/yachts` | List yachts with filtering & pagination |
+| `GET` | `/yachts` | List yachts with advanced filtering & search |
+| `GET` | `/yachts/search` | Advanced search endpoint (alias) |
 | `GET` | `/yachts/:id` | Get yacht by ID |
-| `GET` | `/yachts/search/query` | Search yachts by text |
-| `GET` | `/yachts/stats/summary` | Yacht statistics |
+| `GET` | `/yachts/debug/collection-info` | Debug: Get collection statistics |
+| `GET` | `/yachts/debug/yacht/:id` | Debug: Check specific yacht retrieval |
+
+**Available Filters:**
+- **Text Search**: `q` - Search in yacht names and highlights
+- **Category Filters**: `category`, `builder`, `base`, `charterCompany`
+- **Numeric Ranges**: `minCabins`/`maxCabins`, `minDraft`/`maxDraft`, `minEnginePower`/`maxEnginePower`, `minDeposit`/`maxDeposit`
+- **Sorting**: `sortBy` (name, cabins, draft, enginePower, deposit), `sortOrder` (asc, desc)
+- **Pagination**: `page`, `limit`
 
 **Example Queries:**
 ```bash
-# List yachts with filters
-GET /api/yachts?category=1&builder=1&minLength=30&maxLength=50&minCabins=2&maxCabins=4&year=2023&page=1&limit=10
+# Search by yacht name
+GET /api/yachts?q=Blue
 
-# Search yachts
-GET /api/yachts/search/query?q=luxury
+# Filter by cabins and sort
+GET /api/yachts?minCabins=4&maxCabins=8&sortBy=cabins&sortOrder=desc
 
-# Get specific yacht
-GET /api/yachts/12345
+# Get all yachts (no filters)
+GET /api/yachts
+
+# Search with multiple filters
+GET /api/yachts?q=Maria&minCabins=4&base=102751&sortBy=name&sortOrder=asc
+```
+
+### 📚 Catalogue & Filters
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/catalogue/filters` | Get all filter options with yacht counts |
+| `GET` | `/catalogue/filters/active` | Get only active filters (with yachts) |
+| `GET` | `/catalogue/categories` | Get all yacht categories |
+| `GET` | `/catalogue/categories/active` | Get active categories (with yachts) |
+| `GET` | `/catalogue/builders` | Get all yacht builders |
+| `GET` | `/catalogue/builders/active` | Get active builders (with yachts) |
+| `GET` | `/catalogue/bases` | Get all charter bases |
+| `GET` | `/catalogue/bases/active` | Get active bases (with yachts) |
+| `GET` | `/catalogue/charter-companies` | Get all charter companies |
+| `GET` | `/catalogue/charter-companies/active` | Get active companies (with yachts) |
+| `GET` | `/catalogue/countries` | Get all countries |
+| `GET` | `/catalogue/equipment` | Get all equipment options |
+
+**Active Filters Benefits:**
+- ✅ **Frontend Ready**: Only show filter options that have yachts
+- ✅ **Yacht Counts**: Each filter option shows how many yachts it contains
+- ✅ **Performance**: Smaller response size for better frontend performance
+- ✅ **User Experience**: Users only see relevant filter options
+
+**Example Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "categories": [
+      {
+        "id": 1,
+        "name": { "textEN": "Sailing Yacht", "textDE": "Segelyacht" },
+        "yachtCount": 25
+      }
+    ],
+    "ranges": {
+      "cabins": { "min": 2, "max": 8 },
+      "deposit": { "min": 500, "max": 10000 }
+    }
+  },
+  "summary": {
+    "totalCategories": 15,
+    "totalYachts": 98
+  }
+}
 ```
 
 ### 📅 Reservations
@@ -237,20 +297,26 @@ src/
 ├── db/
 │   └── connection.ts          # MongoDB connection setup
 ├── models/                    # Mongoose schemas & models
-│   ├── catalogue.ts
-│   ├── contact.ts
-│   ├── invoice.ts
-│   ├── reservation.ts
-│   └── yacht.ts
+│   ├── catalogue.ts          # Catalogue entities (Base, Country, Equipment, etc.)
+│   ├── common.ts             # Common interfaces (IMultilingualText)
+│   ├── contact.ts            # Contact management
+│   ├── crew.ts               # Crew member data
+│   ├── invoice.ts            # Invoice management
+│   ├── reservation.ts        # Reservation data
+│   └── yacht.ts             # Yacht specifications
 ├── routes/                    # Express route handlers
-│   ├── contact.routes.ts
-│   ├── invoice.routes.ts
-│   ├── reservation.routes.ts
-│   └── yacht.routes.ts
+│   ├── catalogue.routes.ts   # Catalogue and filter endpoints
+│   ├── contact.routes.ts     # Contact management
+│   ├── invoice.routes.ts     # Invoice operations
+│   ├── reservation.routes.ts # Reservation handling
+│   └── yacht.routes.ts      # Yacht search and filtering
 ├── services/
 │   └── sync-db.ts            # Data synchronization workflows
 ├── utils/
+│   ├── date.ts               # Date utility functions
 │   └── logger.ts             # Centralized logging (Winston)
+├── scripts/
+│   └── sync.ts               # Automated sync script
 ├── sync.ts                   # Nausys API client
 └── server.ts                 # Express application setup
 ```
@@ -336,11 +402,24 @@ src/
    sudo service cron restart
    ```
 
-4. **TypeScript Compilation Errors**
+5. **TypeScript Compilation Errors**
    ```bash
    # Clean and rebuild
    rm -rf dist/
    npm run build
+   ```
+
+6. **Yacht API Returns Empty Data**
+   ```bash
+   # Check if data exists
+   GET /api/yachts/debug/collection-info
+   
+   # Search for actual yacht names (not generic terms)
+   GET /api/yachts?q=Blue          # ✅ Works
+   GET /api/yachts?q=yacht         # ❌ No yachts named "yacht"
+   
+   # Get all yachts without filters
+   GET /api/yachts
    ```
 
 ### Debug Mode
@@ -371,6 +450,13 @@ All API responses follow a consistent format:
     "pages": 10,
     "limit": 10
   },
+  "filters": {
+    // Applied filters summary
+  },
+  "search": {
+    "query": "search term",
+    "results": 25
+  },
   "message": "Operation successful"
 }
 ```
@@ -384,6 +470,23 @@ Error responses:
   "error": "Detailed error information"
 }
 ```
+
+## 🌟 Key Features Explained
+
+### Smart Yacht Search
+- **Text Search**: Searches yacht names and highlights in multiple languages
+- **Field Validation**: Only uses fields that actually exist in your database
+- **Performance**: Optimized queries with proper indexing
+
+### Active Filter System
+- **Frontend Optimized**: Only shows filter options with available yachts
+- **Real-time Counts**: Each filter shows how many yachts it contains
+- **Eliminates Empty Results**: Users never see filter options that return no yachts
+
+### Multi-language Support
+- **6 Languages**: English, German, French, Italian, Spanish, Croatian
+- **Consistent Structure**: All text fields follow the same multilingual pattern
+- **Search Ready**: Text search works across all language variants
 
 ## 🤝 Contributing
 
@@ -404,7 +507,10 @@ For support and questions:
 - 📧 Create an issue in the repository
 - 📚 Check the [API Documentation](http://localhost:3000/api-docs)
 - 🔍 Review the troubleshooting section above
+- 🐛 Use debug endpoints for troubleshooting
 
 ---
 
 **Built with ❤️ for the yacht charter industry**
+
+*Last updated: August 2025 - API v3.0 with working yacht search, active filters, and comprehensive catalogue system*

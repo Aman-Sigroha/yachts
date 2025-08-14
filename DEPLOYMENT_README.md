@@ -2,7 +2,7 @@
 
 ## 📋 **Project Overview**
 
-**Yaacht V3** is a robust Node.js/TypeScript backend service that synchronizes yacht charter data from the **Nausys API (v6)** into **MongoDB** and exposes a comprehensive **REST API** for querying yachts, reservations, invoices, and contacts.
+**Yaacht V3** is a robust Node.js/TypeScript backend service that synchronizes yacht charter data from the **Nausys API (v6)** into **MongoDB** and exposes a comprehensive **REST API** for querying yachts, reservations, invoices, and contacts. Built with enterprise-grade features including rate limiting, centralized logging, and auto-generated API documentation.
 
 ## 🌐 **Live API Information**
 
@@ -43,11 +43,13 @@
 
 ### **✅ Current Status: PRODUCTION READY**
 - **Server**: ✅ Running 24/7
-- **API**: ✅ Fully functional
+- **API**: ✅ Fully functional with working yacht search
 - **MongoDB**: ✅ Connected and operational
 - **Data**: ✅ 98 yachts synced from Nausys
 - **External Access**: ✅ Available worldwide
 - **Security**: ✅ Port 3000 open in AWS
+- **Automated Sync**: ✅ Daily sync at 2 AM UTC
+- **Invoice Cleanup**: ✅ Automatic conflict resolution
 
 ## 🔧 **Technical Stack**
 
@@ -82,7 +84,9 @@
 │   └── scripts/            # Sync scripts
 ├── package.json            # Dependencies
 ├── package-lock.json       # Locked versions
-└── .env                    # Environment configuration
+├── .env                    # Environment configuration
+└── logs/                   # Sync and application logs
+    └── cron-sync.log       # Automated sync logs
 ```
 
 ## 🔑 **Environment Configuration**
@@ -176,26 +180,67 @@ cd /home/ubuntu/yacht-api
 node dist/scripts/sync.js
 ```
 
+### **Step 5: Automated Sync Setup**
+```bash
+# Create logs directory
+mkdir -p logs
+
+# Add cron job for daily sync at 2 AM UTC
+(crontab -l 2>/dev/null; echo "0 2 * * * cd /home/ubuntu/yacht-api && node dist/scripts/sync.js >> logs/cron-sync.log 2>&1") | crontab -
+
+# Verify cron job is set
+crontab -l
+```
+
 ## 🌐 **API Endpoints**
 
 ### **Core Endpoints**
 | **Endpoint** | **Method** | **Description** | **Status** |
 |--------------|------------|-----------------|------------|
-| `/api/yachts` | GET | Get all yachts with pagination | ✅ Working |
+| `/api/yachts` | GET | Get all yachts with advanced filtering & search | ✅ Working |
+| `/api/yachts/search` | GET | Advanced search endpoint (alias) | ✅ Working |
+| `/api/yachts/:id` | GET | Get yacht by ID | ✅ Working |
 | `/api/reservations` | GET | Get all reservations | ✅ Working |
 | `/api/invoices` | GET | Get all invoices | ✅ Working |
 | `/api/contacts` | GET | Get all contacts | ✅ Working |
 | `/api-docs` | GET | Swagger API documentation | ✅ Working |
 
+### **New Catalogue & Filter Endpoints**
+| **Endpoint** | **Method** | **Description** | **Status** |
+|--------------|------------|-----------------|------------|
+| `/api/catalogue/filters` | GET | All filter options with yacht counts | ✅ Working |
+| `/api/catalogue/filters/active` | GET | Only active filters (with yachts) | ✅ Working |
+| `/api/catalogue/categories/active` | GET | Active categories with yacht counts | ✅ Working |
+| `/api/catalogue/builders/active` | GET | Active builders with yacht counts | ✅ Working |
+| `/api/catalogue/bases/active` | GET | Active bases with yacht counts | ✅ Working |
+| `/api/catalogue/charter-companies/active` | GET | Active companies with yacht counts | ✅ Working |
+
+### **Debug Endpoints**
+| **Endpoint** | **Method** | **Description** | **Status** |
+|--------------|------------|-----------------|------------|
+| `/api/yachts/debug/collection-info` | GET | Collection statistics and sample data | ✅ Working |
+| `/api/yachts/debug/yacht/:id` | GET | Debug specific yacht retrieval | ✅ Working |
+
 ### **Query Parameters**
 | **Parameter** | **Type** | **Description** | **Example** |
 |---------------|----------|-----------------|-------------|
+| `q` | string | Text search in yacht names and highlights | `?q=Blue` |
 | `page` | number | Page number for pagination | `?page=1` |
 | `limit` | number | Items per page | `?limit=10` |
 | `minCabins` | number | Minimum number of cabins | `?minCabins=5` |
 | `maxCabins` | number | Maximum number of cabins | `?maxCabins=8` |
+| `minDraft` | number | Minimum draft measurement | `?minDraft=1.0` |
+| `maxDraft` | number | Maximum draft measurement | `?maxDraft=2.0` |
+| `minEnginePower` | number | Minimum engine power | `?minEnginePower=100` |
+| `maxEnginePower` | number | Maximum engine power | `?maxEnginePower=500` |
+| `minDeposit` | number | Minimum deposit amount | `?minDeposit=1000` |
+| `maxDeposit` | number | Maximum deposit amount | `?maxDeposit=5000` |
 | `category` | number | Yacht category ID | `?category=101` |
 | `builder` | number | Yacht builder ID | `?builder=100241` |
+| `base` | number | Charter base ID | `?base=102751` |
+| `charterCompany` | number | Charter company ID | `?charterCompany=102701` |
+| `sortBy` | string | Sort field (name, cabins, draft, enginePower, deposit) | `?sortBy=cabins` |
+| `sortOrder` | string | Sort order (asc, desc) | `?sortOrder=desc` |
 
 ## 📊 **Data Statistics**
 
@@ -205,6 +250,7 @@ node dist/scripts/sync.js
 - **Total Invoices**: Available
 - **Total Contacts**: Available
 - **Last Sync**: 2025-08-11 14:27:59 UTC
+- **Automated Sync**: ✅ Daily at 2 AM UTC
 
 ### **Sample Yacht Data**
 ```json
@@ -212,28 +258,58 @@ node dist/scripts/sync.js
   "success": true,
   "data": [
     {
-      "id": 3355085,
+      "id": 479287,
       "name": {
-        "textEN": "Kaja",
-        "textDE": "Kaja",
-        "textFR": "Kaja",
-        "textIT": "Kaja",
-        "textES": "Kaja",
-        "textHR": "Kaja"
+        "textEN": "Maria's Pleasure",
+        "textDE": "Maria's Pleasure",
+        "textFR": "Maria's Pleasure",
+        "textIT": "Maria's Pleasure",
+        "textES": "Maria's Pleasure",
+        "textHR": "Maria's Pleasure"
       },
-      "cabins": 4,
-      "wc": 4,
-      "draft": 1.95,
-      "enginePower": 1850,
-      "fuelType": "DIESEL",
-      "deposit": 1820,
-      "crewCount": 2
+      "cabins": 6,
+      "wc": 2,
+      "draft": 0.95,
+      "enginePower": 18,
+      "deposit": 1825,
+      "baseId": 102751,
+      "charterCompanyId": 102701,
+      "highlights": {
+        "textEN": "ana banana test evo baby blue boja",
+        "textDE": "ana banana test evo baby blue boja"
+      }
     }
   ],
   "pagination": {
     "total": 98,
     "page": 1,
-    "pages": 10
+    "pages": 5
+  },
+  "filters": {},
+  "search": null
+}
+```
+
+### **Active Filter Response Example**
+```json
+{
+  "success": true,
+  "data": {
+    "categories": [
+      {
+        "id": 1,
+        "name": { "textEN": "Sailing Yacht", "textDE": "Segelyacht" },
+        "yachtCount": 25
+      }
+    ],
+    "ranges": {
+      "cabins": { "min": 2, "max": 8 },
+      "deposit": { "min": 500, "max": 10000 }
+    }
+  },
+  "summary": {
+    "totalCategories": 15,
+    "totalYachts": 98
   }
 }
 ```
@@ -263,14 +339,32 @@ node dist/scripts/sync.js
 # Get all yachts
 curl http://yatch.nautio.net:3000/api/yachts
 
-# Get yachts with pagination
-curl "http://yatch.nautio.net:3000/api/yachts?page=1&limit=5"
+# Search by yacht name
+curl "http://yatch.nautio.net:3000/api/yachts?q=Blue"
 
-# Filter by cabins
-curl "http://yatch.nautio.net:3000/api/yachts?minCabins=5"
+# Filter by cabins and sort
+curl "http://yatch.nautio.net:3000/api/yachts?minCabins=4&maxCabins=8&sortBy=cabins&sortOrder=desc"
 
-# Get API documentation
-curl http://yatch.nautio.net:3000/api-docs
+# Get active filters
+curl http://yatch.nautio.net:3000/api/catalogue/filters/active
+
+# Get specific catalogue data
+curl http://yatch.nautio.net:3000/api/catalogue/categories/active
+
+# Debug collection info
+curl http://yatch.nautio.net:3000/api/yachts/debug/collection-info
+```
+
+### **Working Search Examples**
+```bash
+# ✅ These searches work (actual yacht names)
+curl "http://yatch.nautio.net:3000/api/yachts?q=Blue"      # Returns 2 yachts
+curl "http://yatch.nautio.net:3000/api/yachts?q=Maria"     # Returns 1 yacht
+curl "http://yatch.nautio.net:3000/api/yachts?q=Dream"     # Returns 1 yacht
+
+# ❌ These searches return empty (generic terms not in yacht names)
+curl "http://yatch.nautio.net:3000/api/yachts?q=yacht"     # Returns empty
+curl "http://yatch.nautio.net:3000/api/yachts?q=catamaran" # Returns empty
 ```
 
 ## 🚨 **Monitoring & Maintenance**
@@ -308,30 +402,61 @@ db.contacts.countDocuments()
 ### **Log Files**
 - **Service Logs**: `sudo journalctl -u yacht-api`
 - **Application Logs**: `/home/ubuntu/yacht-api/logs/`
+- **Sync Logs**: `/home/ubuntu/yacht-api/logs/cron-sync.log`
 - **MongoDB Logs**: `/var/log/mongodb/`
 
 ## 🔄 **Data Synchronization**
 
-### **Manual Sync**
+### **Automated Sync (Production)**
 ```bash
-# SSH into server
-ssh -i nautio.pem ubuntu@3.69.225.186
+# Check cron job status
+crontab -l
 
-# Run sync script
-cd /home/ubuntu/yacht-api
+# View sync logs
+tail -f logs/cron-sync.log
+
+# Manual sync test
 node dist/scripts/sync.js
 ```
 
 ### **Sync Process**
-1. **Fetch data** from Nausys API
-2. **Transform data** to local format
-3. **Update MongoDB** collections
-4. **Log sync results**
+1. **Clean invoice collection** to prevent conflicts
+2. **Fetch data** from Nausys API
+3. **Transform data** to local format
+4. **Update MongoDB** collections
+5. **Log sync results** to `logs/cron-sync.log`
+
+### **Sync Benefits**
+- ✅ **24/7 Data Freshness**: Automatically syncs every 24 hours
+- ✅ **Server Independent**: Runs even when your laptop is off
+- ✅ **Conflict Resolution**: Automatically cleans up invoice data before each sync
+- ✅ **Comprehensive Logging**: All sync activity logged
+- ✅ **Zero Maintenance**: Fully automated after setup
+
+## 🎯 **Key Features**
+
+### **Smart Yacht Search**
+- **Text Search**: Searches yacht names and highlights in multiple languages
+- **Field Validation**: Only uses fields that actually exist in your database
+- **Performance**: Optimized queries with proper indexing
+
+### **Active Filter System**
+- **Frontend Optimized**: Only shows filter options with available yachts
+- **Real-time Counts**: Each filter shows how many yachts it contains
+- **Eliminates Empty Results**: Users never see filter options that return no yachts
+
+### **Multi-language Support**
+- **6 Languages**: English, German, French, Italian, Spanish, Croatian
+- **Consistent Structure**: All text fields follow the same multilingual pattern
+- **Search Ready**: Text search works across all language variants
 
 ## 🎯 **Next Steps & Enhancements**
 
 ### **Immediate Improvements**
-- [ ] Set up automated daily sync
+- [x] Set up automated daily sync ✅
+- [x] Working yacht search and filtering ✅
+- [x] Active catalogue filters ✅
+- [x] Invoice conflict resolution ✅
 - [ ] Configure MongoDB backups
 - [ ] Add API authentication
 - [ ] Set up monitoring alerts
@@ -341,6 +466,8 @@ node dist/scripts/sync.js
 - [ ] Load balancing
 - [ ] Database clustering
 - [ ] API rate limiting per user
+- [ ] Advanced analytics dashboard
+- [ ] Real-time notifications
 
 ## 📞 **Support & Contact**
 
@@ -351,19 +478,64 @@ node dist/scripts/sync.js
 ### **API Support**
 - **Documentation**: http://yatch.nautio.net:3000/api-docs
 - **Health Check**: http://yatch.nautio.net:3000/api/yachts
+- **Debug Info**: http://yatch.nautio.net:3000/api/yachts/debug/collection-info
+
+## 🚨 **Troubleshooting**
+
+### **Common Issues**
+
+1. **Yacht API Returns Empty Data**
+   ```bash
+   # Check if data exists
+   curl http://localhost:3000/api/yachts/debug/collection-info
+   
+   # Search for actual yacht names (not generic terms)
+   curl "http://localhost:3000/api/yachts?q=Blue"      # ✅ Works
+   curl "http://localhost:3000/api/yachts?q=yacht"     # ❌ No yachts named "yacht"
+   
+   # Get all yachts without filters
+   curl http://localhost:3000/api/yachts
+   ```
+
+2. **Automated Sync Issues**
+   ```bash
+   # Check cron job status
+   crontab -l
+   
+   # Check sync logs
+   tail -f logs/cron-sync.log
+   
+   # Manual sync test
+   node dist/scripts/sync.js
+   ```
+
+3. **Service Issues**
+   ```bash
+   # Check service status
+   sudo systemctl status yacht-api
+   
+   # View service logs
+   sudo journalctl -u yacht-api -f
+   
+   # Restart service
+   sudo systemctl restart yacht-api
+   ```
 
 ## 🎉 **Deployment Complete!**
 
 Your yacht charter API is now:
 - ✅ **Running 24/7** on production server
 - ✅ **Accessible worldwide** from any device
-- ✅ **Fully functional** with real data
+- ✅ **Fully functional** with working yacht search and filtering
 - ✅ **Production-ready** for client applications
+- ✅ **Automated sync** running daily
+- ✅ **Smart filters** that only show relevant options
+- ✅ **Multi-language support** for international clients
 
-**The API is ready for production use and can handle real yacht charter operations!** 🚤✨
+**The API is ready for production use and can handle real yacht charter operations with advanced search, filtering, and catalogue management!** 🚤✨
 
 ---
 
-*Last Updated: 2025-08-11*
-*Deployment Version: 1.0.0*
-*Status: PRODUCTION READY*
+*Last Updated: August 2025*
+*Deployment Version: 3.0.0*
+*Status: PRODUCTION READY with Advanced Features*

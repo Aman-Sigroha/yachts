@@ -2,7 +2,7 @@
 
 ## 📋 **Overview**
 
-This guide explains how to synchronize yacht charter data from the **Nausys API (v6)** into your **MongoDB database** on the production server. The sync process fetches fresh data for yachts, reservations, invoices, contacts, and other related entities.
+This guide explains how to synchronize yacht charter data from the **Nausys API (v6)** into your **MongoDB database** on the production server. The sync process fetches fresh data for yachts, reservations, invoices, contacts, and other related entities. The system now includes **automated daily sync** and **smart conflict resolution** to prevent invoice synchronization errors.
 
 ## 🌐 **Current Data Status**
 
@@ -10,13 +10,15 @@ This guide explains how to synchronize yacht charter data from the **Nausys API 
 - **Server**: yatch.nautio.net (3.69.225.186)
 - **Database**: MongoDB 7.0.22 (Community Edition)
 - **Database Name**: yaacht
-- **Collections**: yachts, reservations, invoices, contacts, bases, countries, equipment
+- **Collections**: yachts, reservations, invoices, contacts, bases, countries, equipment, categories, builders, charter_companies
 
 ### **Last Known Sync Status**
 - **Total Yachts**: 98
 - **Last Sync**: 2025-08-11 14:27:59 UTC
 - **Data Source**: Nausys API v6
 - **Sync Status**: ✅ Successful
+- **Automated Sync**: ✅ Daily at 2 AM UTC
+- **Conflict Resolution**: ✅ Automatic invoice cleanup
 
 ## 🚀 **Quick Sync Commands**
 
@@ -42,6 +44,9 @@ tail -f logs/combined.log
 
 # Check MongoDB collections after sync
 mongosh yaacht --eval "db.yachts.countDocuments()"
+
+# Check automated sync logs
+tail -f logs/cron-sync.log
 ```
 
 ---
@@ -71,6 +76,10 @@ db.yachts.countDocuments()
 db.reservations.countDocuments()
 db.invoices.countDocuments()
 db.contacts.countDocuments()
+db.bases.countDocuments()
+db.categories.countDocuments()
+db.builders.countDocuments()
+db.charter_companies.countDocuments()
 
 # Exit MongoDB
 exit
@@ -102,6 +111,10 @@ mongosh yaacht --eval "
   print('Reservations: ' + db.reservations.countDocuments());
   print('Invoices: ' + db.invoices.countDocuments());
   print('Contacts: ' + db.contacts.countDocuments());
+  print('Bases: ' + db.bases.countDocuments());
+  print('Categories: ' + db.categories.countDocuments());
+  print('Builders: ' + db.builders.countDocuments());
+  print('Charter Companies: ' + db.charter_companies.countDocuments());
 "
 ```
 
@@ -110,17 +123,18 @@ mongosh yaacht --eval "
 ## 📊 **What Gets Synced**
 
 ### **Primary Data Entities**
-1. **Yachts** - Charter vessels with specifications
-2. **Reservations** - Booking information
-3. **Invoices** - Billing details
-4. **Contacts** - Customer information
+1. **Yachts** - Charter vessels with specifications and highlights
+2. **Reservations** - Booking information and availability
+3. **Invoices** - Billing details (base, agency, owner)
+4. **Contacts** - Customer and partner information
 
 ### **Supporting Data**
-1. **Bases** - Charter locations
-2. **Countries** - Geographic data
-3. **Equipment** - Yacht amenities
-4. **Categories** - Yacht classifications
-5. **Builders** - Yacht manufacturers
+1. **Bases** - Charter locations and ports
+2. **Countries** - Geographic data for international operations
+3. **Equipment** - Yacht amenities and features
+4. **Categories** - Yacht classifications (sailing, motor, catamaran)
+5. **Builders** - Yacht manufacturers and brands
+6. **Charter Companies** - Charter service providers
 
 ### **Data Transformation**
 - **Nausys Format** → **MongoDB Schema**
@@ -128,6 +142,7 @@ mongosh yaacht --eval "
 - **Data validation** and error handling
 - **Duplicate prevention** and updates
 - **Smart conflict resolution** - Automatic invoice collection cleanup before each sync
+- **Field validation** - Only syncs fields that exist in the target schema
 
 ---
 
@@ -179,6 +194,15 @@ ps aux | grep node
 top -p $(pgrep node)
 ```
 
+#### **5. Invoice Sync Conflicts (RESOLVED)**
+```bash
+# The system now automatically cleans up invoice collection before each sync
+# This prevents "duplicate key" errors that were occurring previously
+
+# Check if invoice cleanup is working
+tail -f logs/cron-sync.log | grep -i "invoice.*drop\|invoice.*cleanup"
+```
+
 ### **Sync Script Errors**
 
 #### **Permission Denied**
@@ -209,6 +233,7 @@ ls -la node_modules/
 - [ ] Nausys API credentials are valid
 - [ ] Server has internet access
 - [ ] Application service is running
+- [ ] Automated sync cron job is configured
 
 ### **During Sync Monitoring**
 ```bash
@@ -217,6 +242,9 @@ tail -f logs/combined.log | grep -i sync
 
 # Monitor MongoDB collections
 watch -n 5 'mongosh yaacht --eval "print(\"Yachts: \" + db.yachts.countDocuments())"'
+
+# Check automated sync status
+tail -f logs/cron-sync.log
 ```
 
 ### **Post-Sync Validation**
@@ -229,13 +257,20 @@ mongosh yaacht --eval "
   print('Invoices: ' + db.invoices.countDocuments());
   print('Contacts: ' + db.contacts.countDocuments());
   print('Bases: ' + db.bases.countDocuments());
-  print('Countries: ' + db.countries.countDocuments());
+  print('Categories: ' + db.categories.countDocuments());
+  print('Builders: ' + db.builders.countDocuments());
+  print('Charter Companies: ' + db.charter_companies.countDocuments());
 "
 
 # Check latest sync timestamp
 mongosh yaacht --eval "
   db.yachts.find().sort({_id: -1}).limit(1).forEach(printjson)
 "
+
+# Test API endpoints after sync
+curl http://localhost:3000/api/yachts/debug/collection-info
+curl http://localhost:3000/api/catalogue/filters/active
+```
 
 ### **Monitor Automated Sync**
 ```bash
@@ -247,7 +282,9 @@ crontab -l
 
 # Check last automated sync time
 ls -la logs/cron-sync.log
-```
+
+# Monitor cron job execution
+sudo journalctl -u cron -f
 ```
 
 ---
@@ -316,13 +353,13 @@ sudo systemctl start yacht-sync.timer
 ## 🎯 **Best Practices**
 
 ### **When to Sync**
-- **Daily**: For active charter seasons
+- **Daily**: For active charter seasons (✅ Currently Active)
 - **Weekly**: For off-season periods
 - **Before deployments**: Ensure fresh data
 - **After API changes**: Test new endpoints
 
 ### **Sync Timing**
-- **Off-peak hours**: 2-4 AM UTC
+- **Off-peak hours**: 2-4 AM UTC (✅ Currently Active)
 - **Low traffic periods**: Weekends
 - **Monitor performance**: Avoid during peak usage
 
@@ -333,6 +370,9 @@ mongodump --db yaacht --out /home/ubuntu/backups/$(date +%Y%m%d)
 
 # Restore if needed
 mongorestore --db yaacht /home/ubuntu/backups/20250811/yaacht/
+
+# Automated backup script (optional)
+echo "0 1 * * * mongodump --db yaacht --out /home/ubuntu/backups/\$(date +%Y%m%d)" | crontab -
 ```
 
 ---
@@ -341,10 +381,11 @@ mongorestore --db yaacht /home/ubuntu/backups/20250811/yaacht/
 
 ### **If Sync Fails**
 1. **Check logs**: `tail -f logs/error.log`
-2. **Verify credentials**: Check `.env` file
-3. **Test connectivity**: Ping external APIs
-4. **Restart services**: MongoDB and Node.js
-5. **Check resources**: Memory and disk space
+2. **Check automated sync logs**: `tail -f logs/cron-sync.log`
+3. **Verify credentials**: Check `.env` file
+4. **Test connectivity**: Ping external APIs
+5. **Restart services**: MongoDB and Node.js
+6. **Check resources**: Memory and disk space
 
 ### **Emergency Procedures**
 ```bash
@@ -357,6 +398,10 @@ sudo systemctl start mongod
 
 # Rollback to previous data if needed
 # (Use backups created before sync)
+
+# Check automated sync status
+crontab -l
+sudo systemctl status cron
 ```
 
 ### **Contact Information**
@@ -364,6 +409,7 @@ sudo systemctl start mongod
 - **Logs Location**: `/home/ubuntu/yacht-api/logs/`
 - **MongoDB**: `mongosh yaacht`
 - **Service Status**: `sudo systemctl status yacht-api`
+- **Cron Status**: `crontab -l`
 
 ---
 
@@ -374,12 +420,55 @@ sudo systemctl start mongod
 - No error messages in logs
 - API responses include fresh data
 - MongoDB collections updated
+- Automated sync logs show success
+- Invoice collection is cleaned before sync
 
 ### **❌ Failed Sync**
 - Error messages in logs
 - Data counts unchanged
 - API responses show old data
 - MongoDB collections not updated
+- Automated sync logs show errors
+- Invoice conflicts persist
+
+---
+
+## 🚤 **API Testing After Sync**
+
+### **Test Yacht Endpoints**
+```bash
+# Check if yacht data is available
+curl http://localhost:3000/api/yachts/debug/collection-info
+
+# Test yacht search
+curl "http://localhost:3000/api/yachts?q=Blue"
+
+# Test yacht filtering
+curl "http://localhost:3000/api/yachts?minCabins=4&sortBy=cabins&sortOrder=desc"
+```
+
+### **Test Catalogue Endpoints**
+```bash
+# Check active filters
+curl http://localhost:3000/api/catalogue/filters/active
+
+# Check specific catalogue data
+curl http://localhost:3000/api/catalogue/categories/active
+curl http://localhost:3000/api/catalogue/builders/active
+curl http://localhost:3000/api/catalogue/bases/active
+```
+
+### **Test Other Endpoints**
+```bash
+# Reservations
+curl http://localhost:3000/api/reservations
+
+# Invoices
+curl http://localhost:3000/api/invoices
+
+# Contacts
+curl http://localhost:3000/api/contacts
+```
 
 ---
 
@@ -389,28 +478,54 @@ sudo systemctl start mongod
 - `DEPLOYMENT_README.md` - Complete deployment guide
 - `DEPLOYMENT.md` - Step-by-step deployment
 - `env.template` - Environment variables template
+- `README.md` - Main project documentation
 
 ### **Useful Commands Reference**
 ```bash
 # Quick status check
-sudo systemctl status yacht-api mongod
+sudo systemctl status yacht-api mongod cron
 
 # View recent logs
 tail -n 100 logs/combined.log
+tail -n 100 logs/cron-sync.log
 
 # Check disk space
 df -h
 
 # Monitor system resources
 htop
+
+# Check automated sync status
+crontab -l
+ls -la logs/cron-sync.log
 ```
 
 ---
 
-**Remember**: Regular data synchronization ensures your yacht charter API always provides the most current and accurate information to your clients! 🚤✨
+## 🌟 **New Features After Sync**
+
+### **Working Yacht Search & Filtering**
+- **Text Search**: Search yacht names and highlights
+- **Advanced Filtering**: Cabins, draft, engine power, deposit
+- **Smart Sorting**: By name, cabins, draft, engine power, deposit
+- **Pagination**: Configurable page size and navigation
+
+### **Active Catalogue System**
+- **Frontend Optimized**: Only shows filter options with available yachts
+- **Real-time Counts**: Each filter shows yacht count
+- **Eliminates Empty Results**: Users never see irrelevant options
+
+### **Multi-language Support**
+- **6 Languages**: English, German, French, Italian, Spanish, Croatian
+- **Consistent Structure**: All text fields follow multilingual pattern
+- **Search Ready**: Text search works across all language variants
 
 ---
 
-*Last Updated: 2025-01-27*
-*Sync Guide Version: 2.0.0*
-*Status: PRODUCTION READY WITH AUTOMATED SYNC*
+**Remember**: Regular data synchronization ensures your yacht charter API always provides the most current and accurate information to your clients! The new automated sync system with conflict resolution makes this process seamless and reliable. 🚤✨
+
+---
+
+*Last Updated: August 2025*
+*Sync Guide Version: 3.0.0*
+*Status: PRODUCTION READY WITH AUTOMATED SYNC & CONFLICT RESOLUTION*
