@@ -484,7 +484,7 @@ router.get('/debug/yacht/:id', async (req, res) => {
         
         // Get first yacht regardless of ID
         const firstYacht = await Yacht.findOne({});
-        
+
         res.json({
             success: true,
             debug: {
