@@ -1,74 +1,53 @@
-# 🚀 **Yacht API Deployment Overview**
+# 🚢 Yacht Charter API - Deployment Overview
 
-## 📋 **Project Summary**
+High-level deployment guide and current status for the Yacht Charter API with advanced search, filtering, catalogue system, and yacht availability management.
 
-A comprehensive yacht charter management API built with Node.js/TypeScript, featuring advanced search, filtering, automated data synchronization, and production-ready deployment on AWS EC2.
-
-## ✨ **Current Status: PRODUCTION READY** ✅
+## 🎯 **Current Status: PRODUCTION READY** ✅
 
 - **🌐 Production Server**: `http://3.69.225.186:3000`
 - **📚 API Documentation**: `http://3.69.225.186:3000/api-docs`
-- **🚀 All Features Working**: Search, filtering, catalogue, automated sync
+- **🚀 All Features Working**: Search, filtering, catalogue, automated sync, availability
 - **🔧 Swagger Fixed**: No more YAML syntax errors
 - **🧹 Production Cleaned**: Optimized production environment
 
-## 🎯 **Key Features**
+## 📋 **Project Summary**
 
-- 🚢 **Advanced Yacht Search**: Multi-parameter filtering and text search
-- 🎛️ **Smart Catalogue System**: Active filters with yacht counts
-- 🔄 **Automated Data Sync**: Daily synchronization with Nausys API v6
-- 🌍 **Multi-language Support**: Text in EN, DE, FR, IT, ES, HR
-- 🛡️ **Conflict Resolution**: Prevents duplicate key errors during sync
-- 📚 **Complete API Docs**: Auto-generated Swagger/OpenAPI documentation
-- 🔍 **Debug Endpoints**: Built-in troubleshooting and data inspection
+The Yacht Charter API is a comprehensive Node.js/TypeScript backend service that provides:
+
+- **Advanced Yacht Search & Filtering**: Multi-parameter filtering with text search and pagination
+- **Smart Catalogue System**: Active filters that only show options with available yachts
+- **Yacht Availability Management**: Check availability, calendar views, and bulk operations
+- **Automated Data Synchronization**: Daily sync with Nausys API v6 with conflict resolution
+- **Multi-language Support**: Handle text in EN, DE, FR, IT, ES, HR languages
+- **Complete API Documentation**: Auto-generated Swagger/OpenAPI docs
 
 ## 🏗️ **Architecture**
 
 - **Backend**: Node.js 18+ with TypeScript
-- **Framework**: Express.js with REST API
-- **Database**: MongoDB with Mongoose ODM
+- **Framework**: Express.js with comprehensive middleware
+- **Database**: MongoDB 5+ with Mongoose ODM
 - **API Documentation**: Swagger/OpenAPI 3.0
-- **Deployment**: AWS EC2 Ubuntu 24.04 LTS
-- **Service Management**: systemd service
+- **Data Sync**: Nausys API v6 integration
+- **Deployment**: AWS EC2 with systemd service
 - **Automation**: Cron jobs for daily sync
-
-## 🚀 **Deployment Process**
-
-### **1. Server Setup**
-- Ubuntu 24.04 LTS on AWS EC2
-- Node.js 18+ and MongoDB 6.0
-- UFW firewall configuration
-- SSH key-based authentication
-
-### **2. Application Deployment**
-- Git clone and dependency installation
-- Environment configuration
-- TypeScript compilation
-- systemd service creation
-
-### **3. Service Configuration**
-- `yacht-api.service` systemd service
-- Port 3000 exposure
-- Automatic restart on failure
-- Production environment variables
-
-### **4. Automated Sync Setup**
-- Daily cron job at 2:00 AM UTC
-- Conflict resolution for invoice data
-- Comprehensive logging
-- Zero-maintenance operation
 
 ## 🌐 **API Endpoints**
 
-### **Yachts**
-- `GET /api/yachts` - Advanced search with filtering and pagination
+### **Yachts & Search**
+- `GET /api/yachts` - Advanced search with filtering, pagination, sorting, and date-based availability filtering
 - `GET /api/yachts/search` - Search endpoint alias
 - `GET /api/yachts/debug/collection-info` - Collection statistics
 - `GET /api/yachts/debug/yacht/:id` - Specific yacht debugging
 
+### **Yacht Availability**
+- `GET /api/yachts/{id}/availability` - Check yacht availability for a specific date range
+- `GET /api/yachts/{id}/calendar` - Monthly calendar view with availability status
+- `GET /api/yachts/{id}/availability-summary` - Availability statistics and next available periods
+- `GET /api/yachts/bulk-availability` - Check availability for multiple yachts in a date range
+
 ### **Catalogue & Filters**
 - `GET /api/catalogue/filters` - All filter options
-- `GET /api/catalogue/filters/active` - Only filters with yachts
+- `GET /api/catalogue/filters/active` - Only filters with associated yachts
 - `GET /api/catalogue/categories/active` - Active categories
 - `GET /api/catalogue/builders/active` - Active builders
 - `GET /api/catalogue/bases/active` - Active bases
@@ -88,20 +67,50 @@ A comprehensive yacht charter management API built with Node.js/TypeScript, feat
 - `minDraft`/`maxDraft` - Draft measurement range
 - `minEnginePower`/`maxEnginePower` - Engine power range
 - `minDeposit`/`maxDeposit` - Deposit amount range
+- `startDate`/`endDate` - Date range filtering for yacht availability (YYYY-MM-DD format)
 - `page`, `limit` - Pagination
 - `sortBy`, `sortOrder` - Sorting options
 
-### **Example Queries**
+### **Date-Based Availability Filtering**
+The main `/api/yachts` endpoint now supports date filtering to return only yachts available within the specified date range:
+
 ```bash
-# Search for catamarans with 3+ cabins
-GET /api/yachts?q=catamaran&minCabins=3&category=2
+# Example: Get yachts with 5-8 cabins available from Jan 15-25, 2025
+GET /api/yachts?minCabins=5&maxCabins=8&startDate=2025-01-15&endDate=2025-01-25
 
-# Luxury yachts sorted by cabins
-GET /api/yachts?q=luxury&sortBy=cabins&sortOrder=desc
-
-# Active filters only
-GET /api/catalogue/filters/active
+# Example: Search for "Blue" yachts available in March 2025
+GET /api/yachts?q=Blue&startDate=2025-03-01&endDate=2025-03-31
 ```
+
+This feature automatically excludes yachts with conflicting reservations in the specified date range.
+
+## 🚀 **Deployment Process**
+
+### **1. Server Setup**
+- Install Node.js 18+ and MongoDB 5+
+- Configure firewall (SSH, HTTP, port 3000)
+- Set up system user and directories
+
+### **2. Application Deployment**
+- Clone repository and install dependencies
+- Configure environment variables
+- Build TypeScript application
+- Set up systemd service
+
+### **3. Service Configuration**
+- Create and enable systemd service
+- Configure auto-restart and environment
+- Test service functionality
+
+### **4. Automated Data Sync**
+- Create sync script with proper permissions
+- Set up cron job for daily sync at 2:00 AM UTC
+- Configure logging and monitoring
+
+### **5. Testing & Verification**
+- Test all API endpoints
+- Verify Swagger documentation
+- Check automated sync functionality
 
 ## 🔄 **Data Synchronization**
 
@@ -121,109 +130,79 @@ cd /home/ubuntu/yacht-api
 npm run sync
 ```
 
-### **Sync Benefits**
-- ✅ **24/7 Data Freshness**: Automatically syncs every 24 hours
-- ✅ **Server Independent**: Runs even when your laptop is off
-- ✅ **Conflict Resolution**: Automatically cleans up invoice data before each sync
-- ✅ **Comprehensive Logging**: All sync activity logged
-- ✅ **Zero Maintenance**: Fully automated after setup
+### **Conflict Resolution**
+- **Invoice Collection**: Automatically dropped before each sync to prevent duplicate key errors
+- **Data Integrity**: Ensures clean data synchronization
+- **Error Handling**: Comprehensive logging and error recovery
 
-## 🏗️ **Server File Structure**
+## 🧪 **Testing After Deployment**
+
+### **Basic Endpoint Testing**
+```bash
+# Test server health
+curl http://3.69.225.186:3000/api/yachts?limit=1
+
+# Test catalogue endpoints
+curl http://3.69.225.186:3000/api/catalogue/filters/active
+
+# Test debug endpoints
+curl http://3.69.225.186:3000/api/yachts/debug/collection-info
+```
+
+### **Advanced Feature Testing**
+```bash
+# Test search with filters
+curl "http://3.69.225.186:3000/api/yachts?q=Blue&minCabins=5&maxCabins=8&limit=5"
+
+# Test date-based availability filtering
+curl "http://3.69.225.186:3000/api/yachts?minCabins=5&maxCabins=8&startDate=2025-01-15&endDate=2025-01-25&limit=5"
+
+# Test individual yacht availability
+curl "http://3.69.225.186:3000/api/yachts/479287/availability?startDate=2025-01-15&endDate=2025-01-25"
+
+# Test calendar view
+curl "http://3.69.225.186:3000/api/yachts/479287/calendar?year=2025&month=1"
+
+# Test bulk availability
+curl "http://3.69.225.186:3000/api/yachts/bulk-availability?yachtIds=479287,479288&startDate=2025-01-15&endDate=2025-01-25"
+```
+
+### **Swagger Documentation**
+- **URL**: `http://3.69.225.186:3000/api-docs`
+- **Status**: ✅ Working with all endpoints documented
+- **Features**: Interactive testing, comprehensive schemas
+
+## 📊 **Server File Structure**
 
 ```
 /home/ubuntu/yacht-api/
-├── .env                    # Environment variables
-├── dist/                   # Compiled JavaScript (production code)
+├── dist/                    # Compiled JavaScript (production)
+│   ├── server.js           # Main application
+│   ├── routes/             # API route handlers
+│   ├── models/             # Database models
+│   ├── services/           # Business logic
+│   └── scripts/            # Sync and utility scripts
 ├── logs/                   # Application and sync logs
-│   └── cron-sync.log      # Automated sync logs
-├── node_modules/           # Dependencies
-├── package.json            # Project configuration
-├── scripts/                # Sync and utility scripts
+│   ├── app.log            # Application logs
+│   └── cron-sync.log      # Sync operation logs
+├── scripts/                # Shell scripts
 │   └── sync.sh            # Automated sync script
-└── test-server.js          # Test server (can be removed)
+├── .env                    # Environment configuration
+└── package.json            # Dependencies and scripts
 ```
 
-## 🧪 **Testing Your Deployed API**
-
-### **Health Check**
-```bash
-curl http://3.69.225.186:3000/api-docs
-```
-
-### **Test Yacht Search**
-```bash
-# Search for catamarans
-curl "http://3.69.225.186:3000/api/yachts?q=catamaran&minCabins=3"
-
-# Get active filters
-curl "http://3.69.225.186:3000/api/catalogue/filters/active"
-
-# Test pagination
-curl "http://3.69.225.186:3000/api/yachts?page=1&limit=10"
-```
-
-### **Test Catalogue Endpoints**
-```bash
-# All categories
-curl "http://3.69.225.186:3000/api/catalogue/categories"
-
-# Active categories only
-curl "http://3.69.225.186:3000/api/catalogue/categories/active"
-
-# All builders
-curl "http://3.69.225.186:3000/api/catalogue/builders"
-```
-
-## 📊 **Data Statistics**
-
-### **Current Data Status**
-- **Yachts**: Available with advanced search and filtering
-- **Categories**: Active categories with yacht counts
-- **Builders**: Active builders with yacht counts
-- **Bases**: Active bases with yacht counts
-- **Charter Companies**: Active companies with yacht counts
-- **Automated Sync**: Daily updates at 2:00 AM UTC
-
-### **Sample Yacht Data**
-- **Total Yachts**: Available in database
-- **Categories**: Sailing yachts, motor yachts, catamarans
-- **Cabins Range**: 2-8 cabins
-- **Draft Range**: Various measurements
-- **Engine Power**: Different power ranges
-- **Deposit Range**: Various deposit amounts
-
-### **Active Filter Response Example**
-```json
-{
-  "success": true,
-  "data": {
-    "categories": [
-      {
-        "id": 1,
-        "name": { "textEN": "Sailing Yacht", "textDE": "Segelyacht" },
-        "yachtCount": 25
-      }
-    ],
-    "ranges": {
-      "cabins": { "min": 2, "max": 8 },
-      "deposit": { "min": 500, "max": 10000 }
-    }
-  }
-}
-```
-
-## 🔧 **Maintenance Commands**
+## 🔧 **Maintenance & Monitoring**
 
 ### **Service Management**
 ```bash
 # Check service status
 sudo systemctl status yacht-api
 
-# Restart service
-sudo systemctl restart yacht-api
-
 # View logs
 sudo journalctl -u yacht-api -f
+
+# Restart service
+sudo systemctl restart yacht-api
 ```
 
 ### **Sync Monitoring**
@@ -235,121 +214,102 @@ crontab -l
 tail -f /home/ubuntu/yacht-api/logs/cron-sync.log
 
 # Manual sync
-cd /home/ubuntu/yacht-api && npm run sync
+cd /home/ubuntu/yacht-api
+npm run sync
 ```
 
-### **Deploy Updates**
+### **Database Management**
 ```bash
-# From your local machine
-npm run build
-scp -i nautio.pem -r dist/ ubuntu@3.69.225.186:/home/ubuntu/yacht-api/
-ssh -i nautio.pem ubuntu@3.69.225.186 "sudo systemctl restart yacht-api"
+# Connect to MongoDB
+mongosh
+
+# Check collections
+show collections
+
+# Check yacht data
+db.yachts.countDocuments()
+
+# Check reservations
+db.reservations.countDocuments()
 ```
 
 ## 🚨 **Troubleshooting**
 
 ### **Common Issues**
 
-#### **Service Won't Start**
-```bash
-# Check service status
-sudo systemctl status yacht-api
-
-# Check logs
-sudo journalctl -u yacht-api -n 50
-
-# Verify environment variables
-cat /home/ubuntu/yacht-api/.env
-```
-
 #### **API Returns Empty Data**
-```bash
-# Check if data sync has run
-tail -f /home/ubuntu/yacht-api/logs/cron-sync.log
-
-# Use debug endpoints
-curl "http://3.69.225.186:3000/api/yachts/debug/collection-info"
-```
+- Check if data sync has run recently
+- Verify MongoDB connection
+- Use debug endpoints: `/api/yachts/debug/collection-info`
 
 #### **Swagger Documentation Issues**
 - ✅ **RESOLVED**: YAML syntax errors fixed
 - ✅ **RESOLVED**: Production API docs working
 - ✅ **RESOLVED**: Source files cleaned up
 
+#### **Automated Sync Issues**
+- Check cron job status: `crontab -l`
+- View sync logs: `tail -f /home/ubuntu/yacht-api/logs/cron-sync.log`
+- Verify Nausys API credentials
+
 ### **Debug Endpoints**
 - `GET /api/yachts/debug/collection-info` - Collection statistics
 - `GET /api/yachts/debug/yacht/:id` - Specific yacht debugging
 
-## 📈 **Performance & Monitoring**
+## 📈 **Performance & Security**
 
-### **System Resources**
-```bash
-# CPU and memory usage
-htop
+### **Performance Optimizations**
+- **Database Indexing**: Optimized queries with proper indexes
+- **Pagination**: Efficient data retrieval for large datasets
+- **Connection Pooling**: Optimized database connections
 
-# Disk usage
-df -h
+### **Security Features**
+- **Rate Limiting**: API protection with configurable limits
+- **CORS**: Cross-origin resource sharing configuration
+- **Input Validation**: Query parameter validation and sanitization
+- **Error Handling**: Graceful error responses without information leakage
 
-# Process status
-ps aux | grep node
-```
+## 🔮 **Future Enhancements**
 
-### **API Performance**
-```bash
-# Response times
-curl -w "@curl-format.txt" -o /dev/null -s "http://3.69.225.186:3000/api/yachts"
+### **Planned Features**
+- **Real-time Updates**: WebSocket support for live data
+- **Advanced Analytics**: Business intelligence and reporting
+- **Multi-tenant Support**: Separate data for different organizations
+- **API Versioning**: Backward compatibility management
+- **Enhanced Security**: JWT authentication and role-based access
 
-# Load testing
-ab -n 100 -c 10 http://3.69.225.186:3000/api/yachts
-```
-
-## 🔒 **Security Features**
-
-- **Firewall**: UFW with only necessary ports (22, 3000)
-- **SSH**: Key-based authentication only
-- **Environment Variables**: Sensitive data in `.env` file
-- **Service Isolation**: systemd service with proper user permissions
-- **Log Monitoring**: Comprehensive logging for security events
-
-## 🎯 **Immediate Improvements**
-
-- ✅ **Swagger YAML syntax errors fixed**
-- ✅ **Production API documentation working**
-- ✅ **Source files cleaned up from production**
-- ✅ **Advanced yacht search and filtering implemented**
-- ✅ **Active catalogue system with yacht counts**
-- ✅ **Automated daily sync with conflict resolution**
-- ✅ **Debug endpoints for troubleshooting**
-- ✅ **Production environment optimized**
-
-## 🚀 **Future Enhancements**
-
-- **Load Balancing**: Multiple instances behind ALB/ELB
-- **Database Scaling**: MongoDB Atlas for managed database
-- **Caching**: Redis for API response caching
-- **CDN**: CloudFront for static assets
-- **Monitoring**: CloudWatch for metrics and alerts
-- **SSL/TLS**: HTTPS encryption
-- **API Rate Limiting**: Enhanced request throttling
+### **Scaling Considerations**
+- **Load Balancing**: Multiple server instances
+- **Database Sharding**: Horizontal scaling for large datasets
+- **Redis Caching**: Advanced caching layer
+- **CDN Integration**: Static asset optimization
 
 ## 📞 **Support & Documentation**
 
+### **Available Resources**
 - **API Documentation**: `http://3.69.225.186:3000/api-docs`
-- **Service Status**: Check with `sudo systemctl status yacht-api`
+- **Production Status**: Check service status on server
 - **Sync Logs**: `/home/ubuntu/yacht-api/logs/cron-sync.log`
-- **System Logs**: `sudo journalctl -u yacht-api`
+- **Service Logs**: `sudo journalctl -u yacht-api`
+
+### **Quick Commands**
+```bash
+# Check production status
+curl http://3.69.225.186:3000/api/yachts?limit=1
+
+# Check service status
+ssh -i nautio.pem ubuntu@3.69.225.186 "sudo systemctl status yacht-api"
+
+# View recent logs
+ssh -i nautio.pem ubuntu@3.69.225.186 "sudo journalctl -u yacht-api -n 20"
+```
 
 ---
 
-**Deployment Complete!** 🎉
+**Last Updated**: August 18, 2025  
+**Deployment Guide Version**: 3.0.0  
+**Status**: ✅ **PRODUCTION READY - All features working including date filtering**
 
-Your Yacht Charter API is now running in production with:
-- ✅ **Advanced search and filtering**
-- ✅ **Automated data synchronization**
-- ✅ **Complete API documentation**
-- ✅ **Production-optimized environment**
-- ✅ **24/7 availability**
+---
 
-**Last updated**: August 14, 2025  
-**Deployment Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working**
+*This deployment overview covers the current status and key information for the Yacht Charter API with advanced search, filtering, catalogue system, and yacht availability management.*

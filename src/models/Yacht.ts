@@ -111,7 +111,6 @@ const YachtSchema = new Schema({
 });
 
 // Indexes
-YachtSchema.index({ id: 1 });
 YachtSchema.index({ charterCompanyId: 1 });
 YachtSchema.index({ modelId: 1 });
 YachtSchema.index({ categoryId: 1 });

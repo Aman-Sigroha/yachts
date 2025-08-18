@@ -1,143 +1,156 @@
-# 🚀 **Yacht API Deployment Guide**
+# 🚢 Yacht Charter API - Deployment Guide
 
-## 📋 **Overview**
+Complete deployment guide for the Yacht Charter API with automated data synchronization, advanced filtering, and yacht availability management.
 
-This guide covers the complete deployment process for the Yacht Charter API to AWS EC2, including automated data synchronization and production optimization.
-
-## ✨ **Current Status: PRODUCTION READY** ✅
+## 🎯 **Current Status: PRODUCTION READY** ✅
 
 - **🌐 Production Server**: `http://3.69.225.186:3000`
 - **📚 API Documentation**: `http://3.69.225.186:3000/api-docs`
-- **🚀 All Features Working**: Search, filtering, catalogue, automated sync
+- **🚀 All Features Working**: Search, filtering, catalogue, automated sync, availability
 - **🔧 Swagger Fixed**: No more YAML syntax errors
 - **🧹 Production Cleaned**: Optimized production environment
 
-## 🏗️ **Prerequisites**
+## 🏗️ **Architecture Overview**
 
-- **AWS EC2 Instance**: Ubuntu 24.04 LTS (t3.micro or higher)
-- **SSH Key Pair**: `.pem` file for server access
-- **Domain Name**: Optional (e.g., `yatch.nautio.net`)
-- **MongoDB**: Local or cloud instance
-- **Nausys API**: Credentials for data synchronization
+- **Backend**: Node.js 18+ with TypeScript
+- **Framework**: Express.js with middleware
+- **Database**: MongoDB 5+ with Mongoose ODM
+- **API Documentation**: Swagger/OpenAPI 3.0
+- **Data Sync**: Nausys API v6 integration
+- **Deployment**: AWS EC2 with systemd service
+- **Automation**: Cron jobs for daily sync
+- **Features**: Advanced filtering, search, catalogue system, yacht availability
 
-## 🚀 **Deployment Process**
+## 🚀 **Server Setup**
 
-### **Step 1: Server Setup**
-
-#### **1.1 Connect to Server**
+### **1. System Requirements**
 ```bash
-ssh -i nautio.pem ubuntu@3.69.225.186
-```
-
-#### **1.2 Update System**
-```bash
+# Update system
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y curl wget git build-essential
-```
 
-#### **1.3 Install Node.js 18+**
-```bash
+# Install Node.js 18+
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
-# Verify installation
-node --version  # Should show v18.x.x
-npm --version   # Should show 9.x.x
-```
-
-#### **1.4 Install MongoDB**
-```bash
-# Import MongoDB public GPG key
-wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
-
-# Add MongoDB repository
-echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
-
-# Install MongoDB
+# Install MongoDB 5+
+wget -qO - https://www.mongodb.org/static/pgp/server-5.0.asc | sudo apt-key add -
+echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/5.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-5.0.list
 sudo apt update
 sudo apt install -y mongodb-org
 
-# Start and enable MongoDB
+# Start MongoDB
 sudo systemctl start mongod
 sudo systemctl enable mongod
-
-# Verify MongoDB is running
-sudo systemctl status mongod
 ```
 
-### **Step 2: Application Deployment**
-
-#### **2.1 Clone Repository**
+### **2. Firewall Configuration**
 ```bash
-cd /home/ubuntu
-git clone <your-repository-url> yacht-api
-cd yacht-api
+# Allow SSH, HTTP, and API port
+sudo ufw allow ssh
+sudo ufw allow 80
+sudo ufw allow 3000
+sudo ufw enable
 ```
 
-#### **2.2 Install Dependencies**
+## 📦 **Application Deployment**
+
+### **1. Clone Repository**
 ```bash
-npm install --production
+# Create application directory
+mkdir -p /home/ubuntu/yacht-api
+cd /home/ubuntu/yacht-api
+
+# Clone repository (replace with your repo URL)
+git clone <your-repository-url> .
 ```
 
-#### **2.3 Environment Configuration**
+### **2. Install Dependencies**
 ```bash
-# Create .env file
+# Install Node.js dependencies
+npm install
+
+# Install PM2 globally (optional, for process management)
+sudo npm install -g pm2
+```
+
+### **3. Environment Configuration**
+```bash
+# Create environment file
 cp env.template .env
-nano .env
 
-# Required variables:
-MONGODB_URI=mongodb://localhost:27017/yaacht
-NAUSYS_USERNAME=your_username
-NAUSYS_PASSWORD=your_password
+# Edit environment variables
+nano .env
+```
+
+**Required Environment Variables:**
+```bash
+# Database
+MONGODB_URI=mongodb://localhost:27017/yacht-api
+
+# Nausys API
+NAUSYS_API_URL=https://api.nausys.com/v6
+NAUSYS_API_KEY=your_api_key
+
+# Server
 PORT=3000
 NODE_ENV=production
 ```
 
-#### **2.4 Build Application**
+### **4. Build Application**
 ```bash
+# Build TypeScript to JavaScript
 npm run build
+
+# Verify build output
+ls -la dist/
 ```
 
-### **Step 3: Service Configuration**
+## 🔧 **Service Configuration**
 
-#### **3.1 Create Systemd Service**
+### **1. Create Systemd Service**
 ```bash
-sudo tee /etc/systemd/system/yacht-api.service > /dev/null << 'EOF'
+sudo nano /etc/systemd/system/yacht-api.service
+```
+
+**Service Configuration:**
+```ini
 [Unit]
 Description=Yacht Charter API
-After=network.target
+After=network.target mongod.service
 
 [Service]
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/yacht-api
 ExecStart=/usr/bin/node dist/server.js
-Restart=on-failure
+Restart=always
 RestartSec=10
 Environment=NODE_ENV=production
+Environment=PORT=3000
 
 [Install]
 WantedBy=multi-user.target
-EOF
 ```
 
-#### **3.2 Enable and Start Service**
+### **2. Enable and Start Service**
 ```bash
+# Reload systemd
 sudo systemctl daemon-reload
+
+# Enable service
 sudo systemctl enable yacht-api
+
+# Start service
 sudo systemctl start yacht-api
 
 # Check status
 sudo systemctl status yacht-api
 ```
 
-### **Step 4: Configure Automated Data Sync**
+## 🔄 **Automated Data Synchronization**
 
-#### **4.1 Create Sync Script**
+### **1. Create Sync Script**
 ```bash
-# Create sync directory
-mkdir -p /home/ubuntu/yacht-api/scripts
-
 # Create sync script
 cat > /home/ubuntu/yacht-api/scripts/sync.sh << 'EOF'
 #!/bin/bash
@@ -150,7 +163,7 @@ EOF
 chmod +x /home/ubuntu/yacht-api/scripts/sync.sh
 ```
 
-#### **4.2 Setup Cron Job**
+### **2. Setup Cron Job**
 ```bash
 # Edit crontab
 crontab -e
@@ -159,33 +172,35 @@ crontab -e
 0 2 * * * /home/ubuntu/yacht-api/scripts/sync.sh
 ```
 
-#### **4.3 Create Log Directory**
+### **3. Verify Sync Setup**
 ```bash
-mkdir -p /home/ubuntu/yacht-api/logs
-touch /home/ubuntu/yacht-api/logs/cron-sync.log
+# Check cron jobs
+crontab -l
+
+# Test sync manually
+/home/ubuntu/yacht-api/scripts/sync.sh
+
+# Check sync logs
+tail -f /home/ubuntu/yacht-api/logs/cron-sync.log
 ```
 
-### **Step 5: Firewall and Security**
+## 🌐 **Nginx Configuration (Optional)**
 
-#### **5.1 Configure UFW Firewall**
+### **1. Install Nginx**
 ```bash
-sudo ufw allow ssh
-sudo ufw allow 3000
-sudo ufw enable
-
-# Check status
-sudo ufw status
+sudo apt install nginx
 ```
 
-#### **5.2 Optional: Nginx Reverse Proxy**
+### **2. Configure Reverse Proxy**
 ```bash
-sudo apt install -y nginx
+sudo nano /etc/nginx/sites-available/yacht-api
+```
 
-# Create nginx configuration
-sudo tee /etc/nginx/sites-available/yacht-api << 'EOF'
+**Nginx Configuration:**
+```nginx
 server {
     listen 80;
-    server_name yatch.nautio.net;
+    server_name your-domain.com;
 
     location / {
         proxy_pass http://localhost:3000;
@@ -199,33 +214,91 @@ server {
         proxy_cache_bypass $http_upgrade;
     }
 }
-EOF
+```
 
-# Enable site
+### **3. Enable Site**
+```bash
+# Create symlink
 sudo ln -s /etc/nginx/sites-available/yacht-api /etc/nginx/sites-enabled/
+
+# Test configuration
 sudo nginx -t
+
+# Restart Nginx
 sudo systemctl restart nginx
 ```
 
-## 🔄 **Data Synchronization**
+## 🧪 **Testing & Verification**
 
-### **Automated Sync (Production)**
-- **Frequency**: Every 24 hours at 2:00 AM UTC
-- **Cron Job**: `0 2 * * * /home/ubuntu/yacht-api/scripts/sync.sh`
-- **Benefits**: Fresh data, no manual intervention, conflict resolution
-- **Monitoring**: Logs at `/home/ubuntu/yacht-api/logs/cron-sync.log`
-
-### **Manual Sync**
+### **1. Test Basic Endpoints**
 ```bash
-# SSH to production server
-ssh -i nautio.pem ubuntu@3.69.225.186
+# Test server health
+curl http://localhost:3000/api/yachts?limit=1
 
-# Run manual sync
-cd /home/ubuntu/yacht-api
-npm run sync
+# Test catalogue endpoints
+curl http://localhost:3000/api/catalogue/filters/active
+
+# Test debug endpoints
+curl http://localhost:3000/api/yachts/debug/collection-info
 ```
 
-### **Sync Monitoring**
+### **2. Test Advanced Features**
+```bash
+# Test search with filters
+curl "http://localhost:3000/api/yachts?q=Blue&minCabins=5&maxCabins=8&limit=5"
+
+# Test date-based availability filtering
+curl "http://localhost:3000/api/yachts?minCabins=5&maxCabins=8&startDate=2025-01-15&endDate=2025-01-25&limit=5"
+
+# Test individual yacht availability
+curl "http://localhost:3000/api/yachts/479287/availability?startDate=2025-01-15&endDate=2025-01-25"
+
+# Test calendar view
+curl "http://localhost:3000/api/yachts/479287/calendar?year=2025&month=1"
+
+# Test bulk availability
+curl "http://localhost:3000/api/yachts/bulk-availability?yachtIds=479287,479288&startDate=2025-01-15&endDate=2025-01-25"
+```
+
+### **3. Test Swagger Documentation**
+```bash
+# Open in browser
+http://localhost:3000/api-docs
+```
+
+## 📊 **Monitoring & Maintenance**
+
+### **1. Service Management**
+```bash
+# Check service status
+sudo systemctl status yacht-api
+
+# View logs
+sudo journalctl -u yacht-api -f
+
+# Restart service
+sudo systemctl restart yacht-api
+
+# Stop service
+sudo systemctl stop yacht-api
+```
+
+### **2. Database Management**
+```bash
+# Connect to MongoDB
+mongosh
+
+# Check collections
+show collections
+
+# Check yacht data
+db.yachts.countDocuments()
+
+# Check reservations
+db.reservations.countDocuments()
+```
+
+### **3. Sync Monitoring**
 ```bash
 # Check cron job status
 crontab -l
@@ -233,63 +306,9 @@ crontab -l
 # View sync logs
 tail -f /home/ubuntu/yacht-api/logs/cron-sync.log
 
-# Check service status
-sudo systemctl status yacht-api
-```
-
-## 🧪 **Testing Your Deployed API**
-
-### **Health Check**
-```bash
-curl http://3.69.225.186:3000/api-docs
-```
-
-### **Test Yacht Search**
-```bash
-# Search for catamarans
-curl "http://3.69.225.186:3000/api/yachts?q=catamaran&minCabins=3"
-
-# Get active filters
-curl "http://3.69.225.186:3000/api/catalogue/filters/active"
-
-# Test pagination
-curl "http://3.69.225.186:3000/api/yachts?page=1&limit=10"
-```
-
-### **Test Catalogue Endpoints**
-```bash
-# All categories
-curl "http://3.69.225.186:3000/api/catalogue/categories"
-
-# Active categories only
-curl "http://3.69.225.186:3000/api/catalogue/categories/active"
-
-# All builders
-curl "http://3.69.225.186:3000/api/catalogue/builders"
-```
-
-## 🔧 **Maintenance and Updates**
-
-### **Deploy Updates**
-```bash
-# From your local machine
-npm run build
-scp -i nautio.pem -r dist/ ubuntu@3.69.225.186:/home/ubuntu/yacht-api/
-ssh -i nautio.pem ubuntu@3.69.225.186 "sudo systemctl restart yacht-api"
-```
-
-### **Check Service Status**
-```bash
-ssh -i nautio.pem ubuntu@3.69.225.186 "sudo systemctl status yacht-api"
-```
-
-### **View Logs**
-```bash
-# Application logs
-ssh -i nautio.pem ubuntu@3.69.225.186 "sudo journalctl -u yacht-api -f"
-
-# Sync logs
-ssh -i nautio.pem ubuntu@3.69.225.186 "tail -f /home/ubuntu/yacht-api/logs/cron-sync.log"
+# Manual sync
+cd /home/ubuntu/yacht-api
+npm run sync
 ```
 
 ## 🚨 **Troubleshooting**
@@ -298,26 +317,14 @@ ssh -i nautio.pem ubuntu@3.69.225.186 "tail -f /home/ubuntu/yacht-api/logs/cron-
 
 #### **Service Won't Start**
 ```bash
-# Check service status
-sudo systemctl status yacht-api
-
-# Check logs
+# Check service logs
 sudo journalctl -u yacht-api -n 50
+
+# Check application logs
+tail -f /home/ubuntu/yacht-api/logs/app.log
 
 # Verify environment variables
 cat /home/ubuntu/yacht-api/.env
-```
-
-#### **MongoDB Connection Issues**
-```bash
-# Check MongoDB status
-sudo systemctl status mongod
-
-# Check MongoDB logs
-sudo tail -f /var/log/mongodb/mongod.log
-
-# Test connection
-mongo --eval "db.runCommand('ping')"
 ```
 
 #### **API Returns Empty Data**
@@ -325,76 +332,145 @@ mongo --eval "db.runCommand('ping')"
 # Check if data sync has run
 tail -f /home/ubuntu/yacht-api/logs/cron-sync.log
 
-# Use debug endpoints
-curl "http://3.69.225.186:3000/api/yachts/debug/collection-info"
+# Verify MongoDB connection
+curl http://localhost:3000/api/yachts/debug/collection-info
+
+# Check database collections
+mongosh --eval "db.yachts.countDocuments()"
 ```
 
 #### **Swagger Documentation Issues**
-- ✅ **RESOLVED**: YAML syntax errors fixed
-- ✅ **RESOLVED**: Production API docs working
-- ✅ **RESOLVED**: Source files cleaned up
-
-### **Debug Endpoints**
-- `GET /api/yachts/debug/collection-info` - Collection statistics
-- `GET /api/yachts/debug/yacht/:id` - Specific yacht debugging
-
-## 📊 **Performance Monitoring**
-
-### **System Resources**
 ```bash
-# CPU and memory usage
-htop
+# Check if source files exist (they shouldn't in production)
+ls -la /home/ubuntu/yacht-api/src/
 
-# Disk usage
-df -h
+# Restart service after removing source files
+sudo systemctl restart yacht-api
 
-# Process status
-ps aux | grep node
+# Verify API docs
+curl http://localhost:3000/api-docs
 ```
 
-### **API Performance**
+#### **Sync Errors**
 ```bash
-# Response times
-curl -w "@curl-format.txt" -o /dev/null -s "http://3.69.225.186:3000/api/yachts"
+# Check Nausys API credentials
+cat /home/ubuntu/yacht-api/.env | grep NAUSYS
 
-# Load testing (install apache2-utils first)
-ab -n 100 -c 10 http://3.69.225.186:3000/api/yachts
+# Test API connectivity
+curl -H "Authorization: Bearer YOUR_API_KEY" https://api.nausys.com/v6/yachts
+
+# Check sync logs
+tail -f /home/ubuntu/yacht-api/logs/cron-sync.log
+```
+
+### **Performance Issues**
+```bash
+# Check system resources
+htop
+
+# Check MongoDB performance
+mongosh --eval "db.currentOp()"
+
+# Check application memory usage
+ps aux | grep node
 ```
 
 ## 🔒 **Security Considerations**
 
-- **Firewall**: Only necessary ports open (22, 3000)
-- **SSH**: Key-based authentication only
-- **Environment Variables**: Sensitive data in `.env` file
-- **Updates**: Regular system and package updates
-- **Monitoring**: Log monitoring for suspicious activity
+### **1. Firewall Configuration**
+```bash
+# Only allow necessary ports
+sudo ufw status
 
-## 📈 **Scaling Considerations**
+# Restrict SSH access to specific IPs
+sudo ufw allow from YOUR_IP to any port ssh
+```
 
-- **Load Balancer**: Multiple instances behind ALB/ELB
-- **Database**: MongoDB Atlas for managed database
-- **Caching**: Redis for API response caching
-- **CDN**: CloudFront for static assets
-- **Monitoring**: CloudWatch for metrics and alerts
+### **2. Environment Security**
+```bash
+# Secure environment file
+chmod 600 /home/ubuntu/yacht-api/.env
 
-## 🎯 **Next Steps After Deployment**
+# Use strong API keys
+# Rotate credentials regularly
+```
 
-1. ✅ **Configure automated data sync** - Cron job for daily updates
-2. ✅ **Test all API endpoints** - Verify functionality
-3. ✅ **Monitor performance** - Check response times and resource usage
-4. ✅ **Set up monitoring** - Log monitoring and alerting
-5. ✅ **Document procedures** - Update team documentation
-6. ✅ **Plan scaling** - Consider future growth requirements
+### **3. Database Security**
+```bash
+# Enable MongoDB authentication
+# Use strong passwords
+# Restrict network access
+```
 
-## 📞 **Support and Maintenance**
+## 📈 **Performance Optimization**
 
-- **Documentation**: `http://3.69.225.186:3000/api-docs`
-- **Service Status**: `sudo systemctl status yacht-api`
-- **Sync Logs**: `/home/ubuntu/yacht-api/logs/cron-sync.log`
-- **System Logs**: `sudo journalctl -u yacht-api`
+### **1. Database Indexing**
+```bash
+# Connect to MongoDB
+mongosh
+
+# Create indexes for common queries
+db.yachts.createIndex({ "id": 1 })
+db.yachts.createIndex({ "cabins": 1 })
+db.yachts.createIndex({ "deposit": 1 })
+db.reservations.createIndex({ "yachtId": 1, "periodFrom": 1, "periodTo": 1 })
+```
+
+### **2. Application Optimization**
+```bash
+# Use PM2 for process management
+pm2 start dist/server.js --name yacht-api
+
+# Enable clustering
+pm2 start dist/server.js -i max --name yacht-api
+```
+
+## 🔮 **Future Enhancements**
+
+### **Planned Features**
+- **Real-time Updates**: WebSocket support
+- **Advanced Analytics**: Business intelligence
+- **Multi-tenant Support**: Organization separation
+- **API Versioning**: Backward compatibility
+- **Enhanced Security**: JWT authentication
+
+### **Scaling Considerations**
+- **Load Balancing**: Multiple instances
+- **Database Sharding**: Horizontal scaling
+- **Redis Caching**: Performance improvement
+- **CDN Integration**: Static asset optimization
+
+## 📞 **Support & Maintenance**
+
+### **Regular Maintenance Tasks**
+```bash
+# Daily: Check sync logs
+tail -f /home/ubuntu/yacht-api/logs/cron-sync.log
+
+# Weekly: Check service status
+sudo systemctl status yacht-api
+
+# Monthly: Update system packages
+sudo apt update && sudo apt upgrade -y
+
+# Quarterly: Review and rotate API keys
+```
+
+### **Backup Strategy**
+```bash
+# Database backup
+mongodump --db yacht-api --out /backup/$(date +%Y%m%d)
+
+# Application backup
+tar -czf /backup/yacht-api-$(date +%Y%m%d).tar.gz /home/ubuntu/yacht-api/
+```
 
 ---
 
-**Last updated**: August 14, 2025  
-**Deployment Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working**
+**Last Updated**: August 18, 2025  
+**Deployment Guide Version**: 3.0.0  
+**Status**: ✅ **PRODUCTION READY - All features working including date filtering**
+
+---
+
+*This deployment guide covers the complete setup of the Yacht Charter API with automated data synchronization, advanced filtering, and yacht availability management.*
