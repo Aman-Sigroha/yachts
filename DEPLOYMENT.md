@@ -19,7 +19,7 @@ Complete deployment guide for the Yacht Charter API with automated data synchron
 - **Data Sync**: Nausys API v6 integration
 - **Deployment**: AWS EC2 with systemd service
 - **Automation**: Cron jobs for daily sync
-- **Features**: Advanced filtering, search, catalogue system, yacht availability
+- **Features**: Advanced filtering, search, catalogue system, yacht availability, location-based filtering with multi-language support, journey-based filtering, free yachts filtering, and comprehensive yacht specification filtering (toilets, length, year, berths, beam, premium status, sale status, fuel type)
 
 ## 🚀 **Server Setup**
 
@@ -250,6 +250,18 @@ curl "http://localhost:3000/api/yachts?q=Blue&minCabins=5&maxCabins=8&limit=5"
 # Test date-based availability filtering
 curl "http://localhost:3000/api/yachts?minCabins=5&maxCabins=8&startDate=2025-01-15&endDate=2025-01-25&limit=5"
 
+# Test location-based filtering
+curl "http://localhost:3000/api/yachts?country=Croatia&limit=5"
+curl "http://localhost:3000/api/yachts?country=Hrvatska&limit=5"
+curl "http://localhost:3000/api/yachts?region=Zadar&limit=5"
+curl "http://localhost:3000/api/yachts?location=Zadar&limit=5"
+curl "http://localhost:3000/api/yachts?country=Croatia&region=Zadar&limit=5"
+
+# Test catalogue endpoints
+curl "http://localhost:3000/api/catalogue/countries?limit=5"
+curl "http://localhost:3000/api/catalogue/regions?limit=5"
+curl "http://localhost:3000/api/catalogue/locations?limit=5"
+
 # Test individual yacht availability
 curl "http://localhost:3000/api/yachts/479287/availability?startDate=2025-01-15&endDate=2025-01-25"
 
@@ -467,9 +479,9 @@ tar -czf /backup/yacht-api-$(date +%Y%m%d).tar.gz /home/ubuntu/yacht-api/
 
 ---
 
-**Last Updated**: August 18, 2025  
+**Last Updated**: August 20, 2025  
 **Deployment Guide Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working including date filtering**
+**Status**: ✅ **PRODUCTION READY - All features working including date filtering and location-based filtering**
 
 ---
 

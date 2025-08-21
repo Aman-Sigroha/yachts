@@ -20,13 +20,22 @@ const swaggerSpec = swaggerJsdoc({
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'Yacht API',
-            version: '1.0.0'
-        }
+            title: 'Yacht Charter API v3.0',
+            version: '3.0.0',
+            description: 'Comprehensive API for yacht charter management with advanced filtering, journey-based search, and free yacht availability',
+            contact: {
+                name: 'API Support'
+            }
+        },
+        servers: [
+            {
+                url: 'http://localhost:3000',
+                description: 'Development server'
+            }
+        ]
     },
     apis: [
-        'src/routes/*.ts',  // For development
-        'dist/routes/*.js'  // For production
+        'dist/routes/*.js'  // Use compiled JavaScript files
     ]
 });
 
@@ -49,6 +58,12 @@ const limiter = rateLimit({
     legacyHeaders: false
 });
 app.use('/api', limiter);
+
+// Swagger JSON endpoint (must come before Swagger UI middleware)
+app.get('/api-docs/swagger.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+});
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));

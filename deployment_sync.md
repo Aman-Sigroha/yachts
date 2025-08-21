@@ -23,6 +23,9 @@ This guide covers the data synchronization process for the Yacht Charter API, wh
 - **Contacts**: Customer and company information
 - **Crew Members**: Staff details and assignments
 - **Catalogue Data**: Categories, builders, bases, charter companies, equipment, services
+- **Location Data**: Countries, regions, and locations with multi-language names for advanced filtering
+- **Journey Data**: Charter route information with start/end destinations for journey-based filtering
+- **Yacht Specifications**: Comprehensive filtering by toilets, length, year, berths, beam, premium status, sale status, and fuel type
 
 ### **Sync Benefits**
 - ✅ **24/7 Data Freshness**: Automatically syncs every 24 hours
@@ -73,6 +76,7 @@ tail -f logs/cron-sync.log
 - **contacts**: Customer and company information
 - **crewMembers**: Staff details
 - **catalogue**: Filter options and metadata
+- **journeys**: Charter route information for journey-based filtering
 
 ### **Data Statistics**
 - **Total Yachts**: Available with advanced search and filtering
@@ -81,6 +85,20 @@ tail -f logs/cron-sync.log
 - **Bases**: Active bases with yacht counts
 - **Charter Companies**: Active companies with yacht counts
 - **Automated Sync**: Daily updates at 2:00 AM UTC
+
+## 🔄 **New Nausys API Integration**
+
+### **Journey Data Sync**
+- **Endpoint**: `/yachtReservation/v6/options`
+- **Purpose**: Fetch available charter routes for journey-based filtering
+- **Frequency**: Daily sync at 2:00 AM UTC
+- **Data**: Start/end destination pairs with yacht associations
+
+### **Free Yachts Availability**
+- **Endpoint**: `/yachtReservation/v6/freeYachts`
+- **Purpose**: Get real-time yacht availability for specific date ranges
+- **Usage**: On-demand API calls when `free=true` parameter is used
+- **Fallback**: Graceful degradation when external API is unavailable
 
 ## 🌐 **API Endpoints After Sync**
 
@@ -103,6 +121,9 @@ tail -f logs/cron-sync.log
 - `GET /api/catalogue/builders/active` - Active builders with yacht counts
 - `GET /api/catalogue/bases/active` - Active bases with yacht counts
 - `GET /api/catalogue/charter-companies/active` - Active companies with yacht counts
+- `GET /api/catalogue/countries` - All countries with multi-language names
+- `GET /api/catalogue/regions` - All regions with multi-language names
+- `GET /api/catalogue/locations` - All locations/marinas with multi-language names
 
 ### **Other Endpoints**
 - `GET /api/invoices` - Invoice management
@@ -135,6 +156,34 @@ GET /api/yachts?q=Blue&startDate=2025-03-01&endDate=2025-03-31
 
 This feature automatically excludes yachts with conflicting reservations in the specified date range.
 
+### **Location-Based Filtering with Multi-Language Support**
+The API now supports advanced location filtering using country, region, and location names in multiple languages:
+
+```bash
+# Filter by country (supports 20+ languages)
+GET /api/yachts?country=Croatia&limit=5
+GET /api/yachts?country=Hrvatska&limit=5      # Croatian
+GET /api/yachts?country=Chorvatsko&limit=5    # Czech
+GET /api/yachts?country=Kroatien&limit=5      # German
+
+# Filter by region
+GET /api/yachts?region=Zadar&limit=5
+GET /api/yachts?region=Corse&limit=5          # French
+GET /api/yachts?region=Korsika&limit=5        # Czech
+
+# Filter by specific location/marina
+GET /api/yachts?location=Zadar&limit=5
+GET /api/yachts?location=Ajaccio&limit=5
+
+# Combined location filtering
+GET /api/yachts?country=Croatia&region=Zadar&limit=5
+GET /api/yachts?country=Francie&region=Korsika&limit=5  # Czech names
+```
+
+**Supported Languages**: English, German, French, Italian, Spanish, Croatian, Czech, Hungarian, Lithuanian, Latvian, Dutch, Norwegian, Polish, Russian, Swedish, Slovenian, Slovak, Turkish
+
+**Location Hierarchy**: The filtering follows the hierarchy: **Base → Location → Region → Country**, ensuring accurate results based on actual yacht base locations.
+
 ## 🧪 **API Testing After Sync**
 
 ### **Basic Endpoint Testing**
@@ -156,6 +205,18 @@ curl "http://3.69.225.186:3000/api/yachts?q=Blue&minCabins=5&maxCabins=8&limit=5
 
 # Test date-based availability filtering
 curl "http://3.69.225.186:3000/api/yachts?minCabins=5&maxCabins=8&startDate=2025-01-15&endDate=2025-01-25&limit=5"
+
+# Test location-based filtering
+curl "http://3.69.225.186:3000/api/yachts?country=Croatia&limit=5"
+curl "http://3.69.225.186:3000/api/yachts?country=Hrvatska&limit=5"
+curl "http://3.69.225.186:3000/api/yachts?region=Zadar&limit=5"
+curl "http://3.69.225.186:3000/api/yachts?location=Zadar&limit=5"
+curl "http://3.69.225.186:3000/api/yachts?country=Croatia&region=Zadar&limit=5"
+
+# Test catalogue endpoints
+curl "http://3.69.225.186:3000/api/catalogue/countries?limit=5"
+curl "http://3.69.225.186:3000/api/catalogue/regions?limit=5"
+curl "http://3.69.225.186:3000/api/catalogue/locations?limit=5"
 
 # Test individual yacht availability
 curl "http://3.69.225.186:3000/api/yachts/479287/availability?startDate=2025-01-15&endDate=2025-01-25"
@@ -392,9 +453,9 @@ curl http://3.69.225.186:3000/api/yachts/debug/collection-info
 
 ---
 
-**Last Updated**: August 18, 2025  
+**Last Updated**: August 20, 2025  
 **Sync Guide Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working including date filtering**
+**Status**: ✅ **PRODUCTION READY - All features working including date filtering and location-based filtering**
 
 ---
 

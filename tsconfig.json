@@ -8,7 +8,9 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "removeComments": false,
+    "preserveConstEnums": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]

@@ -5,7 +5,9 @@ import {
     Base, 
     Country, 
     CharterCompany,
-    Equipment 
+    Equipment,
+    Region,
+    Location
 } from '../models/catalogue';
 import { Yacht } from '../models/yacht';
 
@@ -127,6 +129,32 @@ const router = express.Router();
  *                               type: number
  *                             max:
  *                               type: number
+ *                         toilets:
+ *                           type: object
+ *                           properties:
+ *                             min:
+ *                               type: number
+ *                             max:
+ *                               type: number
+ *                     fuelTypes:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Available fuel types
+ *                     premiumStatus:
+ *                       type: object
+ *                       properties:
+ *                         isPremium:
+ *                           type: boolean
+ *                         premiumCount:
+ *                           type: number
+ *                     saleStatus:
+ *                       type: object
+ *                       properties:
+ *                         onSale:
+ *                           type: boolean
+ *                         saleCount:
+ *                           type: number
  */
 // Get comprehensive filter catalogue data
 router.get('/filters', async (req, res) => {
@@ -168,9 +196,34 @@ router.get('/filters', async (req, res) => {
                     minEnginePower: { $min: '$enginePower' },
                     maxEnginePower: { $max: '$enginePower' },
                     minDeposit: { $min: '$deposit' },
-                    maxDeposit: { $max: '$deposit' }
+                    maxDeposit: { $max: '$deposit' },
+                    minToilets: { $min: '$wc' },
+                    maxToilets: { $max: '$wc' }
                 }
             }
+        ]);
+
+        // Get toilets range separately to handle null values properly
+        const toiletsRange = await Yacht.aggregate([
+            { $match: { wc: { $exists: true, $ne: null, $type: "number" } } },
+            {
+                $group: {
+                    _id: null,
+                    minToilets: { $min: '$wc' },
+                    maxToilets: { $max: '$wc' }
+                }
+            }
+        ]);
+
+        // Get unique fuel types
+        const fuelTypes = await Yacht.distinct('fuelType').then(types => 
+            types.filter(type => type && type.trim() !== '').sort()
+        );
+
+        // Get premium and sale status counts
+        const [premiumCount, onSaleCount] = await Promise.all([
+            Yacht.countDocuments({ isPremium: true }),
+            Yacht.countDocuments({ onSale: true })
         ]);
 
         // Get unique years for year filter
@@ -287,8 +340,24 @@ router.get('/filters', async (req, res) => {
                 deposit: {
                     min: yachtRanges[0].minDeposit,
                     max: yachtRanges[0].maxDeposit
+                },
+                toilets: toiletsRange[0] ? {
+                    min: toiletsRange[0].minToilets,
+                    max: toiletsRange[0].maxToilets
+                } : {
+                    min: yachtRanges[0].minToilets,
+                    max: yachtRanges[0].maxToilets
                 }
-            } : null
+            } : null,
+            fuelTypes: fuelTypes,
+            premiumStatus: {
+                isPremium: premiumCount > 0,
+                premiumCount: premiumCount
+            },
+            saleStatus: {
+                onSale: onSaleCount > 0,
+                saleCount: onSaleCount
+            }
         };
 
         res.json({
@@ -390,9 +459,34 @@ router.get('/filters/active', async (req, res) => {
                     minEnginePower: { $min: '$enginePower' },
                     maxEnginePower: { $max: '$enginePower' },
                     minDeposit: { $min: '$deposit' },
-                    maxDeposit: { $max: '$deposit' }
+                    maxDeposit: { $max: '$deposit' },
+                    minToilets: { $min: '$wc' },
+                    maxToilets: { $max: '$wc' }
                 }
             }
+        ]);
+
+        // Get toilets range separately to handle null values properly
+        const toiletsRange = await Yacht.aggregate([
+            { $match: { wc: { $exists: true, $ne: null, $type: "number" } } },
+            {
+                $group: {
+                    _id: null,
+                    minToilets: { $min: '$wc' },
+                    maxToilets: { $max: '$wc' }
+                }
+            }
+        ]);
+
+        // Get unique fuel types
+        const fuelTypes = await Yacht.distinct('fuelType').then(types => 
+            types.filter(type => type && type.trim() !== '').sort()
+        );
+
+        // Get premium and sale status counts
+        const [premiumCount, onSaleCount] = await Promise.all([
+            Yacht.countDocuments({ isPremium: true }),
+            Yacht.countDocuments({ onSale: true })
         ]);
 
         // Get unique years for year filter
@@ -469,8 +563,24 @@ router.get('/filters/active', async (req, res) => {
                 deposit: {
                     min: yachtRanges[0].minDeposit,
                     max: yachtRanges[0].maxDeposit
+                },
+                toilets: toiletsRange[0] ? {
+                    min: toiletsRange[0].minToilets,
+                    max: toiletsRange[0].maxToilets
+                } : {
+                    min: yachtRanges[0].minToilets,
+                    max: yachtRanges[0].maxToilets
                 }
-            } : null
+            } : null,
+            fuelTypes: fuelTypes,
+            premiumStatus: {
+                isPremium: premiumCount > 0,
+                premiumCount: premiumCount
+            },
+            saleStatus: {
+                onSale: onSaleCount > 0,
+                saleCount: onSaleCount
+            }
         };
 
         res.json({
@@ -769,10 +879,17 @@ router.get('/bases/active', async (req, res) => {
  * @openapi
  * /api/catalogue/countries:
  *   get:
- *     summary: Get countries
+ *     summary: Get all countries with multi-language names
+ *     description: Returns a list of all countries with names in multiple languages (EN, DE, FR, IT, ES, HR, CZ, HU, LT, LV, NL, NO, PL, RU, SE, SI, SK, TR)
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: "Maximum number of countries to return (default: all)"
  *     responses:
  *       200:
- *         description: List of countries
+ *         description: List of countries with multi-language names
  */
 router.get('/countries', async (req, res) => {
     try {
@@ -780,6 +897,68 @@ router.get('/countries', async (req, res) => {
         res.json({
             success: true,
             data: countries
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /api/catalogue/regions:
+ *   get:
+ *     summary: Get all regions with multi-language names
+ *     description: Returns a list of all regions with names in multiple languages (EN, DE, FR, IT, ES, HR, CZ, HU, LT, LV, NL, NO, PL, RU, SE, SI, SK, TR)
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: "Maximum number of regions to return (default: all)"
+ *     responses:
+ *       200:
+ *         description: List of regions with multi-language names
+ */
+router.get('/regions', async (req, res) => {
+    try {
+        const regions = await Region.find().sort({ 'name.textEN': 1 });
+        res.json({
+            success: true,
+            data: regions
+        });
+    } catch (error: any) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+});
+
+/**
+ * @openapi
+ * /api/catalogue/locations:
+ *   get:
+ *     summary: Get all locations/marinas with multi-language names
+ *     description: Returns a list of all locations and marinas with names in multiple languages (EN, DE, FR, IT, ES, HR, CZ, HU, LT, LV, NL, NO, PL, RU, SE, SI, SK, TR)
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *         description: "Maximum number of locations to return (default: all)"
+ *     responses:
+ *       200:
+ *         description: List of locations/marinas with multi-language names
+ */
+router.get('/locations', async (req, res) => {
+    try {
+        const locations = await Location.find().sort({ 'name.textEN': 1 });
+        res.json({
+            success: true,
+            data: locations
         });
     } catch (error: any) {
         res.status(500).json({
@@ -819,7 +998,9 @@ router.get('/ranges', async (req, res) => {
                     minEnginePower: { $min: '$enginePower' },
                     maxEnginePower: { $max: '$enginePower' },
                     minDeposit: { $min: '$deposit' },
-                    maxDeposit: { $max: '$deposit' }
+                    maxDeposit: { $max: '$deposit' },
+                    minToilets: { $min: '$wc' },
+                    maxToilets: { $max: '$wc' }
                 }
             }
         ]);
@@ -856,6 +1037,10 @@ router.get('/ranges', async (req, res) => {
             deposit: {
                 min: yachtRanges[0].minDeposit,
                 max: yachtRanges[0].maxDeposit
+            },
+            toilets: {
+                min: yachtRanges[0].minToilets,
+                max: yachtRanges[0].maxToilets
             }
         } : null;
 

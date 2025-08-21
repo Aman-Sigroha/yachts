@@ -108,6 +108,17 @@ const YachtSchema = new Schema({
     maxSpeed: Number,
     cruisingSpeed: Number,
     updatedAt: { type: Date, default: Date.now }
+}, {
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
+
+// Virtual populate for base details
+YachtSchema.virtual('base', {
+    ref: 'Base',
+    localField: 'baseId',
+    foreignField: 'id',
+    justOne: true
 });
 
 // Indexes
@@ -125,16 +136,36 @@ YachtSchema.index({ onSale: 1 });
 export interface IYachtModel extends Document {
     id: number;
     name: IMultilingualText;
+    yachtCategoryId?: number;
+    yachtBuilderId?: number;
+    loa?: number;           // Length Overall
+    beam?: number;          // Yacht beam/width
+    draft?: number;         // Draft
+    cabins?: number;        // Number of cabins
+    wc?: number;            // Number of toilets
+    waterTank?: number;     // Water tank capacity
+    fuelTank?: number;      // Fuel tank capacity
+    displacement?: number;  // Yacht displacement
+    virtualLength?: number; // Virtual length
     builderId: number;
-    virtualLength: number;
     updatedAt: Date;
 }
 
 const YachtModelSchema = new Schema({
     id: { type: Number, required: true, unique: true },
     name: { type: MultilingualTextSchema, required: true },
+    yachtCategoryId: Number,
+    yachtBuilderId: Number,
+    loa: Number,           // Length Overall
+    beam: Number,          // Yacht beam/width
+    draft: Number,         // Draft
+    cabins: Number,        // Number of cabins
+    wc: Number,            // Number of toilets
+    waterTank: Number,     // Water tank capacity
+    fuelTank: Number,      // Fuel tank capacity
+    displacement: Number,  // Yacht displacement
+    virtualLength: Number, // Virtual length
     builderId: { type: Number, required: true },
-    virtualLength: Number,
     updatedAt: { type: Date, default: Date.now }
 });
 

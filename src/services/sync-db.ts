@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { connectDB } from '../db/connection';
 import * as api from '../sync';
-import { Base, Country, Equipment, YachtCategory, Service, YachtBuilder, CharterCompany } from '../models/catalogue';
+import { Base, Country, Equipment, YachtCategory, Service, YachtBuilder, CharterCompany, Region, Location, Journey } from '../models/catalogue';
 import { Yacht, YachtModel } from '../models/yacht';
 import { Reservation, Occupancy } from '../models/reservation';
 import { CrewMember } from '../models/crew';
@@ -98,6 +98,42 @@ export const syncCatalogueData = async () => {
             }
         } else {
             console.log('No countries found in API response');
+        }
+
+        // Sync regions
+        console.log('Fetching regions...');
+        const regions = await api.getAllRegions();
+        console.log('Regions API response:', JSON.stringify(regions, null, 2));
+        if (regions?.regions) {
+            console.log(`Processing ${regions.regions.length} regions...`);
+            for (const region of regions.regions) {
+                const result = await Region.findOneAndUpdate(
+                    { id: region.id },
+                    { ...region, name: toMultilingualText(region.name) },
+                    { upsert: true, new: true }
+                );
+                console.log(`Saved region: ${region.id}`);
+            }
+        } else {
+            console.log('No regions found in API response');
+        }
+
+        // Sync locations
+        console.log('Fetching locations...');
+        const locations = await api.getAllLocations();
+        console.log('Locations API response:', JSON.stringify(locations, null, 2));
+        if (locations?.locations) {
+            console.log(`Processing ${locations.locations.length} locations...`);
+            for (const location of locations.locations) {
+                const result = await Location.findOneAndUpdate(
+                    { id: location.id },
+                    { ...location, name: toMultilingualText(location.name) },
+                    { upsert: true, new: true }
+                );
+                console.log(`Saved location: ${location.id}`);
+            }
+        } else {
+            console.log('No locations found in API response');
         }
 
         // Sync equipment
@@ -208,6 +244,34 @@ export const syncYachtData = async () => {
                 if (yachts?.yachts) {
                     console.log(`Processing ${yachts.yachts.length} yachts for company ${company.id}...`);
                     for (const yacht of yachts.yachts) {
+                        // Smart mapping: Find yacht model specifications by name matching
+                        let modelSpecs = null;
+                        if (yacht.yachtModelId || yacht.modelId) {
+                            const modelId = yacht.yachtModelId || yacht.modelId;
+                            modelSpecs = await YachtModel.findOne({ id: modelId });
+                            if (modelSpecs) {
+                                console.log(`Found model specs by ID for yacht ${yacht.id}: LOA=${modelSpecs.loa}m, Beam=${modelSpecs.beam}m`);
+                            }
+                        }
+                        
+                        // If no model found by ID, try to find by name matching
+                        if (!modelSpecs && yacht.name?.textEN) {
+                            const yachtName = yacht.name.textEN.toLowerCase();
+                            // Look for yacht models with similar names
+                            const allModels = await YachtModel.find({});
+                            for (const model of allModels) {
+                                if (model.name?.textEN && yachtName.includes(model.name.textEN.toLowerCase())) {
+                                    modelSpecs = model;
+                                    console.log(`Found model specs by name matching for yacht ${yacht.id}: LOA=${modelSpecs.loa}m, Beam=${modelSpecs.beam}m`);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        if (!modelSpecs) {
+                            console.log(`No yacht model specs found for yacht ${yacht.id} (${yacht.name?.textEN || 'unnamed'})`);
+                        }
+
                         const result = await Yacht.findOneAndUpdate(
                             { id: yacht.id },
                             {
@@ -217,10 +281,51 @@ export const syncYachtData = async () => {
                                 description: toMultilingualText(yacht.description),
                                 highlights: toMultilingualText(yacht.highlights),
                                 note: toMultilingualText(yacht.note),
-                                length: toNumber(yacht.length),
-                                draft: toNumber(yacht.draft),
-                                beam: toNumber(yacht.beam),
-                                deposit: toNumber(yacht.deposit)
+                                // Convert numeric fields that might come as strings from API
+                                length: toNumber(yacht.length || modelSpecs?.loa), // Use yacht.length or fallback to model.loa
+                                cabins: toNumber(yacht.cabins),
+                                berths: toNumber(yacht.berthsTotal || yacht.berths), // Use berthsTotal from Nausys API
+                                wc: toNumber(yacht.wc),
+                                year: toNumber(yacht.buildYear || yacht.year), // Use buildYear from Nausys API
+                                draft: toNumber(yacht.draft || modelSpecs?.draft), // Use yacht.draft or fallback to model.draft
+                                beam: toNumber(yacht.beam || modelSpecs?.beam), // Use yacht.beam or fallback to model.beam
+                                deposit: toNumber(yacht.deposit),
+                                fuelCapacity: toNumber(yacht.fuelCapacity || modelSpecs?.fuelTank), // Use yacht.fuelCapacity or fallback to model.fuelTank
+                                waterCapacity: toNumber(yacht.waterCapacity || modelSpecs?.waterTank), // Use yacht.waterCapacity or fallback to model.waterTank
+                                enginePower: toNumber(yacht.enginePower),
+                                engineCount: toNumber(yacht.engines || yacht.engineCount), // Use engines from Nausys API
+                                // Handle optional numeric fields
+                                refit: yacht.refit ? toNumber(yacht.refit) : undefined,
+                                engineBuilderId: yacht.engineBuilderId ? toNumber(yacht.engineBuilderId) : undefined,
+                                engineBuildYear: yacht.engineBuildYear ? toNumber(yacht.engineBuildYear) : undefined,
+                                sailArea: yacht.sailArea ? toNumber(yacht.sailArea) : undefined,
+                                depositWhenInsured: yacht.depositWhenInsured ? toNumber(yacht.depositWhenInsured) : undefined,
+                                crewCount: yacht.crewCount ? toNumber(yacht.crewCount) : undefined,
+                                maxDiscountFromCommission: yacht.maxDiscountFromCommission ? toNumber(yacht.maxDiscountFromCommission) : undefined,
+                                showers: yacht.showers ? toNumber(yacht.showers) : undefined,
+                                showersCrew: yacht.showersCrew ? toNumber(yacht.showersCrew) : undefined,
+                                recommendedPersons: yacht.recommendedPersons ? toNumber(yacht.recommendedPersons) : undefined,
+                                fuelConsumption: yacht.fuelConsumption ? toNumber(yacht.fuelConsumption) : undefined,
+                                maxSpeed: yacht.maxSpeed ? toNumber(yacht.maxSpeed) : undefined,
+                                cruisingSpeed: yacht.cruisingSpeed ? toNumber(yacht.cruisingSpeed) : undefined,
+                                // New fields from Nausys API
+                                berthsCabin: yacht.berthsCabin ? toNumber(yacht.berthsCabin) : undefined,
+                                berthsSalon: yacht.berthsSalon ? toNumber(yacht.berthsSalon) : undefined,
+                                berthsCrew: yacht.berthsCrew ? toNumber(yacht.berthsCrew) : undefined,
+                                sailTypeId: yacht.sailTypeId ? toNumber(yacht.sailTypeId) : undefined,
+                                sailRenewed: yacht.sailRenewed ? toNumber(yacht.sailRenewed) : undefined,
+                                genoaTypeId: yacht.genoaTypeId ? toNumber(yacht.genoaTypeId) : undefined,
+                                genoaRenewed: yacht.genoaTypeId ? toNumber(yacht.genoaRenewed) : undefined,
+                                steeringTypeId: yacht.steeringTypeId ? toNumber(yacht.steeringTypeId) : undefined,
+                                fourStarCharter: yacht.fourStarCharter || false,
+                                propulsionType: yacht.propulsionType || undefined,
+                                charterType: yacht.charterType || undefined,
+                                // Model specifications (merged from yacht model)
+                                modelLoa: modelSpecs?.loa,
+                                modelBeam: modelSpecs?.beam,
+                                modelDraft: modelSpecs?.draft,
+                                modelDisplacement: modelSpecs?.displacement,
+                                modelVirtualLength: modelSpecs?.virtualLength
                             },
                             { upsert: true, new: true }
                         );
@@ -232,6 +337,34 @@ export const syncYachtData = async () => {
                     const yachtDetails = await api.getYachtsByCompany(company.id, yachts.yachtIDs);
                     if (yachtDetails?.yachts) {
                         for (const yacht of yachtDetails.yachts) {
+                            // Smart mapping: Find yacht model specifications by name matching
+                            let modelSpecs = null;
+                            if (yacht.yachtModelId || yacht.modelId) {
+                                const modelId = yacht.yachtModelId || yacht.modelId;
+                                modelSpecs = await YachtModel.findOne({ id: modelId });
+                                if (modelSpecs) {
+                                    console.log(`Found model specs by ID for yacht ${yacht.id}: LOA=${modelSpecs.loa}m, Beam=${modelSpecs.beam}m`);
+                                }
+                            }
+                            
+                            // If no model found by ID, try to find by name matching
+                            if (!modelSpecs && yacht.name?.textEN) {
+                                const yachtName = yacht.name.textEN.toLowerCase();
+                                // Look for yacht models with similar names
+                                const allModels = await YachtModel.find({});
+                                for (const model of allModels) {
+                                    if (model.name?.textEN && yachtName.includes(model.name.textEN.toLowerCase())) {
+                                        modelSpecs = model;
+                                        console.log(`Found model specs by name matching for yacht ${yacht.id}: LOA=${modelSpecs.loa}m, Beam=${modelSpecs.beam}m`);
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if (!modelSpecs) {
+                                console.log(`No yacht model specs found for yacht ${yacht.id} (${yacht.name?.textEN || 'unnamed'})`);
+                            }
+
                             const result = await Yacht.findOneAndUpdate(
                                 { id: yacht.id },
                                 {
@@ -241,10 +374,51 @@ export const syncYachtData = async () => {
                                     description: toMultilingualText(yacht.description),
                                     highlights: toMultilingualText(yacht.highlights),
                                     note: toMultilingualText(yacht.note),
-                                    length: toNumber(yacht.length),
-                                    draft: toNumber(yacht.draft),
-                                    beam: toNumber(yacht.beam),
-                                    deposit: toNumber(yacht.deposit)
+                                    // Convert numeric fields that might come as strings from API
+                                    length: toNumber(yacht.length || modelSpecs?.loa), // Use yacht.length or fallback to model.loa
+                                    cabins: toNumber(yacht.cabins),
+                                    berths: toNumber(yacht.berthsTotal || yacht.berths), // Use berthsTotal from Nausys API
+                                    wc: toNumber(yacht.wc),
+                                    year: toNumber(yacht.buildYear || yacht.year), // Use buildYear from Nausys API
+                                    draft: toNumber(yacht.draft || modelSpecs?.draft), // Use yacht.draft or fallback to model.draft
+                                    beam: toNumber(yacht.beam || modelSpecs?.beam), // Use yacht.beam or fallback to model.beam
+                                    deposit: toNumber(yacht.deposit),
+                                    fuelCapacity: toNumber(yacht.fuelCapacity || modelSpecs?.fuelTank), // Use yacht.fuelCapacity or fallback to model.fuelTank
+                                    waterCapacity: toNumber(yacht.waterCapacity || modelSpecs?.waterTank), // Use yacht.waterCapacity or fallback to model.waterTank
+                                    enginePower: toNumber(yacht.enginePower),
+                                    engineCount: toNumber(yacht.engines || yacht.engineCount), // Use engines from Nausys API
+                                    // Handle optional numeric fields
+                                    refit: yacht.refit ? toNumber(yacht.refit) : undefined,
+                                    engineBuilderId: yacht.engineBuilderId ? toNumber(yacht.engineBuilderId) : undefined,
+                                    engineBuildYear: yacht.engineBuildYear ? toNumber(yacht.engineBuildYear) : undefined,
+                                    sailArea: yacht.sailArea ? toNumber(yacht.sailArea) : undefined,
+                                    depositWhenInsured: yacht.depositWhenInsured ? toNumber(yacht.depositWhenInsured) : undefined,
+                                    crewCount: yacht.crewCount ? toNumber(yacht.crewCount) : undefined,
+                                    maxDiscountFromCommission: yacht.maxDiscountFromCommission ? toNumber(yacht.maxDiscountFromCommission) : undefined,
+                                    showers: yacht.showers ? toNumber(yacht.showers) : undefined,
+                                    showersCrew: yacht.showersCrew ? toNumber(yacht.showersCrew) : undefined,
+                                    recommendedPersons: yacht.recommendedPersons ? toNumber(yacht.recommendedPersons) : undefined,
+                                    fuelConsumption: yacht.fuelConsumption ? toNumber(yacht.fuelConsumption) : undefined,
+                                    maxSpeed: yacht.maxSpeed ? toNumber(yacht.maxSpeed) : undefined,
+                                    cruisingSpeed: yacht.cruisingSpeed ? toNumber(yacht.cruisingSpeed) : undefined,
+                                    // New fields from Nausys API
+                                    berthsCabin: yacht.berthsCabin ? toNumber(yacht.berthsCabin) : undefined,
+                                    berthsSalon: yacht.berthsSalon ? toNumber(yacht.berthsSalon) : undefined,
+                                    berthsCrew: yacht.berthsCrew ? toNumber(yacht.berthsCrew) : undefined,
+                                    sailTypeId: yacht.sailTypeId ? toNumber(yacht.sailTypeId) : undefined,
+                                    sailRenewed: yacht.sailRenewed ? toNumber(yacht.sailRenewed) : undefined,
+                                    genoaTypeId: yacht.genoaTypeId ? toNumber(yacht.genoaTypeId) : undefined,
+                                    genoaRenewed: yacht.genoaTypeId ? toNumber(yacht.genoaRenewed) : undefined,
+                                    steeringTypeId: yacht.steeringTypeId ? toNumber(yacht.steeringTypeId) : undefined,
+                                    fourStarCharter: yacht.fourStarCharter || false,
+                                    propulsionType: yacht.propulsionType || undefined,
+                                    charterType: yacht.charterType || undefined,
+                                    // Model specifications (merged from yacht model)
+                                    modelLoa: modelSpecs?.loa,
+                                    modelBeam: modelSpecs?.beam,
+                                    modelDraft: modelSpecs?.draft,
+                                    modelDisplacement: modelSpecs?.displacement,
+                                    modelVirtualLength: modelSpecs?.virtualLength
                                 },
                                 { upsert: true, new: true }
                             );
@@ -261,20 +435,37 @@ export const syncYachtData = async () => {
             console.log('No charter companies found in API response');
         }
 
-        // Sync yacht models
-        console.log('Fetching yacht models...');
+        // Sync yacht models with full specifications
+        console.log('Fetching yacht models with specifications...');
         const models = await api.getAllYachtModels();
         console.log('Models API response:', JSON.stringify(models, null, 2));
         if (models?.models) {
-            console.log(`Processing ${models.models.length} models...`);
+            console.log(`Processing ${models.models.length} models with specifications...`);
             for (const model of models.models) {
                 const result = await YachtModel.findOneAndUpdate(
                     { id: model.id },
-                    { ...model, name: toMultilingualText(model.name) },
+                    { 
+                        ...model, 
+                        name: toMultilingualText(model.name),
+                        // Convert numeric specifications that might come as strings
+                        loa: toNumber(model.loa),
+                        beam: toNumber(model.beam),
+                        draft: toNumber(model.draft),
+                        cabins: toNumber(model.cabins),
+                        wc: toNumber(model.wc),
+                        waterTank: toNumber(model.waterTank),
+                        fuelTank: toNumber(model.fuelTank),
+                        displacement: toNumber(model.displacement),
+                        virtualLength: toNumber(model.virtualLength)
+                    },
                     { upsert: true, new: true }
                 );
-                console.log(`Saved model: ${model.id}`);
+                console.log(`Saved model ${model.id} with specifications: LOA=${model.loa}m, Beam=${model.beam}m, Draft=${model.draft}m`);
             }
+            
+            // Now apply model specifications to existing yachts
+            console.log('Applying model specifications to existing yachts...');
+            await applyModelSpecsToYachts();
         } else {
             console.log('No models found in API response');
         }
@@ -483,6 +674,54 @@ export const syncContactData = async () => {
     }
 };
 
+export const syncJourneyData = async () => {
+    try {
+        await connectDB();
+        console.log('Starting journey/options data sync...');
+
+        console.log('Fetching available options...');
+        const options = await api.getAllOptions();
+        console.log('Options API response:', JSON.stringify(options, null, 2));
+        
+        if (options?.reservations) {
+            console.log(`Processing ${options.reservations.length} available options...`);
+            for (const option of options.reservations) {
+                const result = await Journey.findOneAndUpdate(
+                    { id: option.id },
+                    {
+                        id: option.id,
+                        yachtId: option.yachtId,
+                        baseFromId: option.baseFromId,
+                        baseToId: option.baseToId,
+                        locationFromId: option.locationFromId,
+                        locationToId: option.locationToId,
+                        periodFrom: new Date(option.periodFrom.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')),
+                        periodTo: new Date(option.periodTo.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')),
+                        optionTill: new Date(option.optionTill.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')),
+                        reservationStatus: option.reservationStatus,
+                        agency: option.agency,
+                        priceListPrice: toNumber(option.priceListPrice),
+                        agencyPrice: option.agencyPrice ? toNumber(option.agencyPrice) : undefined,
+                        clientPrice: toNumber(option.clientPrice),
+                        currency: option.currency,
+                        approved: option.approved,
+                        createdAt: new Date()
+                    },
+                    { upsert: true, new: true }
+                );
+                console.log(`Saved journey option: ${option.id}`);
+            }
+        } else {
+            console.log('No options found in API response');
+        }
+
+        console.log('Journey data sync completed');
+    } catch (error) {
+        console.error('Error syncing journey data:', error);
+        throw error;
+    }
+};
+
 export const syncAllData = async () => {
     try {
         console.log('Starting full data sync...');
@@ -503,10 +742,119 @@ export const syncAllData = async () => {
         await syncCrewData();
         await syncInvoiceData();
         await syncContactData();
+                await syncJourneyData();
         
         console.log('Full data sync completed successfully');
     } catch (error) {
         console.error('Error during full data sync:', error);
         throw error;
     }
-};
+}
+
+// Function to apply yacht model specifications to existing yachts
+async function applyModelSpecsToYachts() {
+    try {
+        console.log('Starting yacht model specification application...');
+        
+        // Get all yacht models
+        const yachtModels = await YachtModel.find({});
+        console.log(`Found ${yachtModels.length} yacht models to apply`);
+        
+        if (yachtModels.length === 0) {
+            console.log('No yacht models found, skipping specification application');
+            return;
+        }
+        
+        // Get all yachts
+        const yachts = await Yacht.find({});
+        console.log(`Processing ${yachts.length} yachts for specification updates`);
+        
+        let updatedCount = 0;
+        
+        for (const yacht of yachts) {
+            let bestMatch = null;
+            let bestScore = 0;
+            
+            // Try to find the best matching yacht model
+            for (const model of yachtModels) {
+                let score = 0;
+                
+                // Score based on name similarity
+                if (yacht.name?.textEN && model.name?.textEN) {
+                    const yachtName = yacht.name.textEN.toLowerCase();
+                    const modelName = model.name.textEN.toLowerCase();
+                    
+                    // Exact match gets highest score
+                    if (yachtName === modelName) {
+                        score = 100;
+                    }
+                    // Contains match gets medium score
+                    else if (yachtName.includes(modelName) || modelName.includes(yachtName)) {
+                        score = 50;
+                    }
+                    // Partial word match gets lower score
+                    else {
+                        const yachtWords = yachtName.split(/\s+/);
+                        const modelWords = modelName.split(/\s+/);
+                        for (const yachtWord of yachtWords) {
+                            for (const modelWord of modelWords) {
+                                if (yachtWord.length > 2 && modelWord.length > 2 && 
+                                    (yachtWord.includes(modelWord) || modelWord.includes(yachtWord))) {
+                                    score += 10;
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Score based on cabin count similarity
+                if (yacht.cabins && model.cabins && yacht.cabins === model.cabins) {
+                    score += 20;
+                }
+                
+                // Score based on toilet count similarity
+                if (yacht.wc && model.wc && yacht.wc === model.wc) {
+                    score += 20;
+                }
+                
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestMatch = model;
+                }
+            }
+            
+            // Apply specifications if we found a good match
+            if (bestMatch && bestScore >= 30) {
+                const updateData: any = {};
+                
+                // Only update fields that are currently null/undefined
+                if (!yacht.length && bestMatch.loa) {
+                    updateData.length = bestMatch.loa;
+                }
+                if (!yacht.beam && bestMatch.beam) {
+                    updateData.beam = bestMatch.beam;
+                }
+                if (!yacht.draft && bestMatch.draft) {
+                    updateData.draft = bestMatch.draft;
+                }
+                if (!yacht.fuelCapacity && bestMatch.fuelTank) {
+                    updateData.fuelCapacity = bestMatch.fuelTank;
+                }
+                if (!yacht.waterCapacity && bestMatch.waterTank) {
+                    updateData.waterCapacity = bestMatch.waterTank;
+                }
+                
+                if (Object.keys(updateData).length > 0) {
+                    await Yacht.findByIdAndUpdate(yacht._id, updateData);
+                    console.log(`Updated yacht ${yacht.id} with model specs: ${Object.keys(updateData).join(', ')}`);
+                    updatedCount++;
+                }
+            }
+        }
+        
+        console.log(`Specification application completed. Updated ${updatedCount} yachts.`);
+        
+    } catch (error) {
+        console.error('Error applying yacht model specifications:', error);
+    }
+}

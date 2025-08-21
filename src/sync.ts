@@ -175,6 +175,20 @@ export async function getAllCountries() {
     return response.data;
 }
 
+export async function getAllRegions() {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/regions`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+export async function getAllLocations() {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/locations`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
 export async function getAllEquipment() {
     const credentials = getCredentials();
     const url = `${BASE_URL}/catalogue/v6/equipment`;
@@ -319,5 +333,44 @@ export async function getAllStornos(request: StornoRequest): Promise<StornoRespo
             ...request
         }
     );
+    return response.data;
+}
+
+// Get all available yacht reservation options (journeys)
+export async function getAllOptions() {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/yachtReservation/v6/options`;
+    
+    // Get options for the next year to cover future charters
+    const now = new Date();
+    const nextYear = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+
+    const data = {
+        credentials,
+        periodFrom: formatDate(now),
+        periodTo: formatDate(nextYear),
+        includeWaitingOptions: true
+    };
+
+    const response = await makeRequest(url, 'POST', data);
+    return response.data;
+}
+
+// Get free yachts for a specific period
+export async function getFreeYachts(periodFrom: string, periodTo: string, yachtIds?: number[]) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/yachtReservation/v6/freeYachts`;
+    
+    const data: any = {
+        credentials,
+        periodFrom,
+        periodTo
+    };
+    
+    if (yachtIds && yachtIds.length > 0) {
+        data.yachts = yachtIds;
+    }
+
+    const response = await makeRequest(url, 'POST', data);
     return response.data;
 }

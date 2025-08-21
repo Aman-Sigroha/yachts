@@ -1,6 +1,8 @@
 import express from 'express';
 import { Yacht } from '../models/yacht';
 import { Reservation } from '../models/reservation'; // Added import for Reservation
+import { Base, Country, Region, Location, Journey } from '../models/catalogue';
+import { getFreeYachts } from '../sync';
 
 const router = express.Router();
 
@@ -9,7 +11,7 @@ const router = express.Router();
  * /api/yachts:
  *   get:
  *     summary: Get all yachts with filtering and search
- *     description: Retrieve yachts with comprehensive filtering, searching, and pagination
+ *     description: Retrieve yachts with comprehensive filtering, searching, and pagination. Journey-based filtering (startDestination/endDestination) requires journey data to be synced from the Nausys API.
  *     parameters:
  *       - in: query
  *         name: q
@@ -108,6 +110,101 @@ const router = express.Router();
  *           type: string
  *           format: date
  *         description: End date for availability filtering (YYYY-MM-DD format)
+ *       - in: query
+ *         name: country
+ *         schema:
+ *           type: string
+ *         description: Filter by country name (supports multi-language names)
+ *       - in: query
+ *         name: region
+ *         schema:
+ *           type: string
+ *         description: Filter by region name (supports multi-language names)
+ *       - in: query
+ *         name: location
+ *         schema:
+ *           type: string
+ *         description: Filter by specific location/marina name (supports multi-language names)
+ *       - in: query
+ *         name: startDestination
+ *         schema:
+ *           type: string
+ *         description: Filter yachts available for charters STARTING from this destination (supports multi-language names)
+ *       - in: query
+ *         name: endDestination
+ *         schema:
+ *           type: string
+ *         description: Filter yachts available for charters ENDING at this destination (supports multi-language names)
+ *       - in: query
+ *         name: free
+ *         schema:
+ *           type: boolean
+ *         description: When true, returns only free/available yachts (requires startDate and endDate). When false or not provided, returns all yachts.
+ *       - in: query
+ *         name: minToilets
+ *         schema:
+ *           type: integer
+ *         description: Minimum number of toilets/bathrooms
+ *       - in: query
+ *         name: maxToilets
+ *         schema:
+ *           type: integer
+ *         description: Maximum number of toilets/bathrooms
+ *       - in: query
+ *         name: minLength
+ *         schema:
+ *           type: number
+ *         description: Minimum yacht length
+ *       - in: query
+ *         name: maxLength
+ *         schema:
+ *           type: number
+ *         description: Maximum yacht length
+ *       - in: query
+ *         name: minYear
+ *         schema:
+ *           type: integer
+ *         description: Minimum build year
+ *       - in: query
+ *         name: maxYear
+ *         schema:
+ *           type: integer
+ *         description: Maximum build year
+ *       - in: query
+ *         name: minBerths
+ *         schema:
+ *           type: integer
+ *         description: Minimum number of berths/sleeping capacity
+ *       - in: query
+ *         name: maxBerths
+ *         schema:
+ *           type: integer
+ *         description: Maximum number of berths/sleeping capacity
+ *       - in: query
+ *         name: minBeam
+ *         schema:
+ *           type: number
+ *         description: Minimum yacht beam/width
+ *       - in: query
+ *         name: maxBeam
+ *         schema:
+ *           type: number
+ *         description: Maximum yacht beam/width
+ *       - in: query
+ *         name: isPremium
+ *         schema:
+ *           type: boolean
+ *         description: Filter for premium yachts only
+ *       - in: query
+ *         name: onSale
+ *         schema:
+ *           type: boolean
+ *         description: Filter for yachts on sale only
+ *       - in: query
+ *         name: fuelType
+ *         schema:
+ *           type: string
+ *         description: Filter by fuel type (diesel, petrol, etc.)
  *     responses:
  *       200:
  *         description: List of yachts with pagination and filter summary
@@ -130,8 +227,27 @@ router.get('/', async (req, res) => {
             maxEnginePower,
             minDeposit,
             maxDeposit,
+            minToilets,
+            maxToilets,
+            minLength,
+            maxLength,
+            minYear,
+            maxYear,
+            minBerths,
+            maxBerths,
+            minBeam,
+            maxBeam,
+            isPremium,
+            onSale,
+            fuelType,
             startDate,
             endDate,
+            startDestination,
+            endDestination,
+            country,
+            region,
+            location,
+            free,
             page = 1,
             limit = 20,
             sortBy = 'cabins',
@@ -189,6 +305,461 @@ router.get('/', async (req, res) => {
             if (maxDeposit) query.deposit.$lte = Number(maxDeposit);
         }
 
+        // Range filters for toilets/wc
+        if (minToilets || maxToilets) {
+            query.wc = {};
+            if (minToilets) query.wc.$gte = Number(minToilets);
+            if (maxToilets) query.wc.$lte = Number(maxToilets);
+        }
+
+        // Range filters for length
+        if (minLength || maxLength) {
+            query.length = {};
+            if (minLength) query.length.$gte = Number(minLength);
+            if (maxLength) query.length.$lte = Number(maxLength);
+        }
+
+        // Range filters for year
+        if (minYear || maxYear) {
+            query.year = {};
+            if (minYear) query.year.$gte = Number(minYear);
+            if (maxYear) query.year.$lte = Number(maxYear);
+        }
+
+        // Range filters for berths
+        if (minBerths || maxBerths) {
+            query.berths = {};
+            if (minBerths) query.berths.$gte = Number(minBerths);
+            if (maxBerths) query.berths.$lte = Number(maxBerths);
+        }
+
+        // Range filters for beam
+        if (minBeam || maxBeam) {
+            query.beam = {};
+            if (minBeam) query.beam.$gte = Number(minBeam);
+            if (maxBeam) query.beam.$lte = Number(maxBeam);
+        }
+
+        // Boolean filters
+        if (isPremium !== undefined) {
+            query.isPremium = isPremium === 'true' || isPremium === '1';
+        }
+
+        if (onSale !== undefined) {
+            query.onSale = onSale === 'true' || onSale === '1';
+        }
+
+        // Fuel type filter
+        if (fuelType && fuelType.toString().trim()) {
+            query.fuelType = { $regex: fuelType.toString().trim(), $options: 'i' };
+        }
+
+        // Location-based filtering (country, region, location, base)
+        if (country || region || location) {
+            // We need to find bases through the hierarchy: Base → Location → Region → Country
+            let locationIds: number[] = [];
+            let shouldReturnEmpty = false;
+            
+            // Country filtering
+            if (country) {
+                console.log('Country filter value:', country);
+                const countryQuery = {
+                    $or: [
+                        { 'name.textEN': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textDE': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textFR': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textIT': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textES': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textHR': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textCZ': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textHU': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textLT': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textLV': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textNL': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textNO': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textPL': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textRU': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textSE': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textSI': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textSK': { $regex: country.toString().trim(), $options: 'i' } },
+                        { 'name.textTR': { $regex: country.toString().trim(), $options: 'i' } }
+                    ]
+                };
+                
+                console.log('Country query:', JSON.stringify(countryQuery, null, 2));
+                const matchingCountries = await Country.find(countryQuery).select('id');
+                console.log('Matching countries:', matchingCountries.length, matchingCountries);
+                
+                if (matchingCountries.length > 0) {
+                    const countryIds = matchingCountries.map(c => c.id);
+                    console.log('Country IDs found:', countryIds);
+                    
+                    // Find locations that belong to these countries through regions
+                    const regionsInCountry = await Region.find({ countryId: { $in: countryIds } }).select('id');
+                    const countryRegionIds = regionsInCountry.map(r => r.id);
+                    console.log('Regions in country:', countryRegionIds);
+                    
+                    if (countryRegionIds.length > 0) {
+                        const locationsInCountry = await Location.find({ regionId: { $in: countryRegionIds } }).select('id');
+                        const countryLocationIds = locationsInCountry.map(l => l.id);
+                        console.log('Locations in country:', countryLocationIds);
+                        
+                        if (locationIds.length === 0) {
+                            locationIds = countryLocationIds;
+                        } else {
+                            locationIds = locationIds.filter(id => countryLocationIds.includes(id));
+                        }
+                    } else {
+                        console.log('No regions found for country, setting empty baseId');
+                        shouldReturnEmpty = true;
+                    }
+                } else {
+                    console.log('No countries found, setting empty baseId');
+                    shouldReturnEmpty = true;
+                }
+            }
+            
+            // Region filtering
+            if (region) {
+                const regionQuery = {
+                    $or: [
+                        { 'name.textEN': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textDE': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textFR': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textIT': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textES': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textHR': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textCZ': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textHU': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textLT': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textLV': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textNL': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textNO': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textPL': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textRU': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textSE': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textSI': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textSK': { $regex: region.toString().trim(), $options: 'i' } },
+                        { 'name.textTR': { $regex: region.toString().trim(), $options: 'i' } }
+                    ]
+                };
+                
+                const matchingRegions = await Region.find(regionQuery).select('id');
+                console.log('Matching regions:', matchingRegions.length, matchingRegions);
+                
+                if (matchingRegions.length > 0) {
+                    const regionIds = matchingRegions.map((r: any) => r.id);
+                    console.log('Region IDs found:', regionIds);
+                    
+                    // Find locations that belong to these regions
+                    const locationsInRegion = await Location.find({ regionId: { $in: regionIds } }).select('id');
+                    const regionLocationIds = locationsInRegion.map(l => l.id);
+                    console.log('Locations in region:', regionLocationIds);
+                    
+                    if (locationIds.length === 0) {
+                        locationIds = regionLocationIds;
+                    } else {
+                        locationIds = locationIds.filter(id => regionLocationIds.includes(id));
+                    }
+                } else {
+                    console.log('No regions found, setting empty baseId');
+                    shouldReturnEmpty = true;
+                }
+            }
+            
+            // Location filtering
+            if (location) {
+                const locationNameQuery = {
+                    $or: [
+                        { 'name.textEN': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textDE': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textFR': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textIT': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textES': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textHR': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textCZ': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textHU': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textLT': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textLV': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textNL': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textNO': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textPL': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textRU': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textSE': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textSI': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textSK': { $regex: location.toString().trim(), $options: 'i' } },
+                        { 'name.textTR': { $regex: location.toString().trim(), $options: 'i' } }
+                    ]
+                };
+                
+                const matchingLocations = await Location.find(locationNameQuery).select('id');
+                console.log('Matching locations:', matchingLocations.length, matchingLocations);
+                
+                if (matchingLocations.length > 0) {
+                    const directLocationIds = matchingLocations.map((l: any) => l.id);
+                    console.log('Direct location IDs found:', directLocationIds);
+                    
+                    if (locationIds.length === 0) {
+                        locationIds = directLocationIds;
+                    } else {
+                        locationIds = locationIds.filter(id => directLocationIds.includes(id));
+                    }
+                } else {
+                    console.log('No locations found, setting empty baseId');
+                    shouldReturnEmpty = true;
+                }
+            }
+            
+            // Check if we should return empty results
+            if (shouldReturnEmpty) {
+                console.log('Setting empty baseId due to filtering constraints');
+                query.baseId = { $in: [] };
+            } else {
+                // Find bases that have these location IDs
+                console.log('Final location IDs to search:', locationIds);
+                if (locationIds.length > 0) {
+                    const matchingBases = await Base.find({ locationId: { $in: locationIds } }).select('id');
+                    console.log('Matching bases:', matchingBases.length);
+                    const baseIds = matchingBases.map(b => b.id);
+                    
+                    if (baseIds.length > 0) {
+                        query.baseId = { $in: baseIds };
+                        console.log('Base IDs found:', baseIds);
+                    } else {
+                        query.baseId = { $in: [] };
+                    }
+                } else {
+                    query.baseId = { $in: [] };
+                }
+            }
+        }
+
+        // Journey-based filtering using actual charter routes
+        if (startDestination || endDestination) {
+            console.log('Journey filtering - startDestination:', startDestination, 'endDestination:', endDestination);
+            
+            // Build journey query based on available options
+            let journeyQuery: any = {};
+            
+            if (startDestination) {
+                // Find journeys that start from locations matching the start destination name
+                const startLocationQuery = {
+                    $or: [
+                        { 'name.textEN': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textDE': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textFR': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textIT': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textES': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textHR': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textCZ': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textHU': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textLT': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textLV': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textNL': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textNO': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textPL': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textRU': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textSE': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textSI': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textSK': { $regex: startDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textTR': { $regex: startDestination.toString().trim(), $options: 'i' } }
+                    ]
+                };
+                
+                const startLocations = await Location.find(startLocationQuery).select('id');
+                const startLocationIds = startLocations.map((l: any) => l.id);
+                console.log('Start destination locations found:', startLocationIds.length, startLocationIds);
+                
+                if (startLocationIds.length > 0) {
+                    journeyQuery.locationFromId = { $in: startLocationIds };
+                } else {
+                    // No start locations found, return empty result
+                    query.baseId = { $in: [] };
+                    console.log('No start locations found, setting empty baseId');
+                }
+            }
+            
+            if (endDestination && !query.baseId?.$in) {
+                // Find journeys that end at locations matching the end destination name
+                const endLocationQuery = {
+                    $or: [
+                        { 'name.textEN': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textDE': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textFR': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textIT': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textES': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textHR': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textCZ': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textHU': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textLT': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textLV': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textNL': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textNO': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textPL': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textRU': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textSE': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textSI': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textSK': { $regex: endDestination.toString().trim(), $options: 'i' } },
+                        { 'name.textTR': { $regex: endDestination.toString().trim(), $options: 'i' } }
+                    ]
+                };
+                
+                const endLocations = await Location.find(endLocationQuery).select('id');
+                const endLocationIds = endLocations.map((l: any) => l.id);
+                console.log('End destination locations found:', endLocationIds.length, endLocationIds);
+                
+                if (endLocationIds.length > 0) {
+                    if (journeyQuery.locationFromId) {
+                        // Both start and end destinations specified - find intersection
+                        journeyQuery.locationToId = { $in: endLocationIds };
+                    } else {
+                        // Only end destination specified
+                        journeyQuery.locationToId = { $in: endLocationIds };
+                    }
+                } else {
+                    // No end locations found, return empty result
+                    query.baseId = { $in: [] };
+                    console.log('No end locations found, setting empty baseId');
+                }
+            }
+            
+            // If we have journey criteria, find matching journeys and get yacht IDs
+            if (Object.keys(journeyQuery).length > 0 && !query.baseId?.$in) {
+                console.log('Journey query:', JSON.stringify(journeyQuery, null, 2));
+                
+                // Find journeys that match our criteria
+                const matchingJourneys = await Journey.find(journeyQuery).select('yachtId baseFromId baseToId');
+                console.log('Matching journeys found:', matchingJourneys.length);
+                
+                if (matchingJourneys.length > 0) {
+                    // Get unique yacht IDs from matching journeys
+                    const journeyYachtIds = [...new Set(matchingJourneys.map((j: any) => j.yachtId))];
+                    console.log('Yacht IDs from matching journeys:', journeyYachtIds);
+                    
+                    // Filter yachts by these IDs
+                    if (query.id) {
+                        // If we already have yacht ID filtering, intersect them
+                        if (Array.isArray(query.id.$in)) {
+                            query.id.$in = query.id.$in.filter((id: number) => journeyYachtIds.includes(id));
+                        } else if (typeof query.id === 'number') {
+                            if (!journeyYachtIds.includes(query.id)) {
+                                query.id = { $in: [] }; // No match
+                            }
+                        }
+                    } else {
+                        // No existing yacht ID filtering, use journey yacht IDs
+                        query.id = { $in: journeyYachtIds };
+                    }
+                    
+                    // Also filter by base IDs from the journeys
+                    const journeyBaseIds = [...new Set(matchingJourneys.map((j: any) => j.baseFromId))];
+                    console.log('Base IDs from matching journeys:', journeyBaseIds);
+                    
+                    if (query.baseId && query.baseId.$in) {
+                        // Intersect with existing base filtering
+                        query.baseId.$in = query.baseId.$in.filter((id: number) => journeyBaseIds.includes(id));
+                    } else {
+                        // Use journey base IDs
+                        query.baseId = { $in: journeyBaseIds };
+                    }
+                } else {
+                    // No matching journeys found, return empty result
+                    query.id = { $in: [] };
+                    console.log('No matching journeys found, setting empty yacht ID');
+                }
+            }
+        }
+
+        // Free yachts filtering - when free=true, use Nausys API to get only available yachts
+        if (free === 'true' || free === '1') {
+            if (!startDate || !endDate) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'startDate and endDate are required when free=true'
+                });
+            }
+
+            try {
+                console.log('Fetching free yachts for period:', startDate, 'to', endDate);
+                
+                // Format dates for Nausys API (DD.MM.YYYY format)
+                const startDateObj = new Date(startDate.toString());
+                const endDateObj = new Date(endDate.toString());
+                
+                if (isNaN(startDateObj.getTime()) || isNaN(endDateObj.getTime())) {
+                    return res.status(400).json({
+                        success: false,
+                        message: 'Invalid date format. Use YYYY-MM-DD'
+                    });
+                }
+
+                const formatDateForNausys = (date: Date) => {
+                    const day = date.getDate().toString().padStart(2, '0');
+                    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                    const year = date.getFullYear();
+                    return `${day}.${month}.${year}`;
+                };
+
+                const periodFrom = formatDateForNausys(startDateObj);
+                const periodTo = formatDateForNausys(endDateObj);
+
+                // Get free yachts from Nausys API
+                const freeYachtsResponse = await getFreeYachts(periodFrom, periodTo);
+                console.log('Free yachts API response:', JSON.stringify(freeYachtsResponse, null, 2));
+
+                if (freeYachtsResponse?.status === 'OK' && freeYachtsResponse?.freeYachts) {
+                    const freeYachtIds = freeYachtsResponse.freeYachts.map((yacht: any) => yacht.yachtId);
+                    console.log('Free yacht IDs from API:', freeYachtIds);
+
+                                    if (freeYachtIds.length > 0) {
+                    // Filter yachts by free yacht IDs
+                    if (query.id) {
+                        if (Array.isArray(query.id.$in)) {
+                            query.id.$in = query.id.$in.filter((id: number) => freeYachtIds.includes(id));
+                        } else if (typeof query.id === 'number') {
+                            if (!freeYachtIds.includes(query.id)) {
+                                query.id = { $in: [] }; // No match
+                            }
+                        }
+                    } else {
+                        query.id = { $in: freeYachtIds };
+                    }
+                    
+                    // If base filter is already applied, ensure it doesn't conflict with free yachts
+                    if (query.baseId && typeof query.baseId === 'number') {
+                        // Base filter is already set, keep it as is
+                        console.log('Base filter already applied, keeping existing baseId filter');
+                    }
+                } else {
+                    // No free yachts found, return empty result
+                    query.id = { $in: [] };
+                    console.log('No free yachts found for the specified period');
+                }
+                } else if (freeYachtsResponse?.status === 'INSUFFICIENT_DATA') {
+                    console.log('Nausys API returned INSUFFICIENT_DATA - this might mean no yachts available for the period or missing required parameters');
+                    console.log('For now, returning all yachts since we cannot determine which are free');
+                    // Don't filter by free yachts - return all yachts
+                    // This is a fallback when the API doesn't have sufficient data
+                } else {
+                    console.log('No free yachts data in API response');
+                    // Don't filter - return all yachts as fallback
+                }
+            } catch (error) {
+                console.error('Error fetching free yachts:', error);
+                console.log('Falling back to returning all yachts due to API error');
+                // Don't filter - return all yachts as fallback
+                // Continue with normal yacht query without free filtering
+                // Clear any free yachts filtering that might have been set
+                if (query.id && query.id.$in && query.id.$in.length === 0) {
+                    delete query.id.$in;
+                }
+                // Also clear any other free yachts related filters
+                if (query.id && query.id.$in && Array.isArray(query.id.$in) && query.id.$in.length === 0) {
+                    delete query.id;
+                }
+            }
+        }
+
         // Pagination
         const pageNum = Math.max(1, Number(page));
         const limitNum = Math.min(100, Math.max(1, Number(limit)));
@@ -222,6 +793,31 @@ router.get('/', async (req, res) => {
 
         let [yachts, total] = await Promise.all([
             Yacht.find(query)
+                .populate({
+                    path: 'base',
+                    select: 'id name countryId regionId locationId lat lon checkInTime checkOutTime secondaryBase',
+                    populate: [
+                        {
+                            path: 'location',
+                            select: 'id name regionId',
+                            model: 'Location',
+                            populate: [
+                                {
+                                    path: 'region',
+                                    select: 'id name countryId',
+                                    model: 'Region',
+                                    populate: [
+                                        {
+                                            path: 'country',
+                                            select: 'id name code code2',
+                                            model: 'Country'
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                })
                 .skip(skip)
                 .limit(limitNum)
                 .sort(sortOptions),
@@ -263,7 +859,21 @@ router.get('/', async (req, res) => {
         if (minDraft || maxDraft) appliedFilters.draft = { min: minDraft, max: maxDraft };
         if (minEnginePower || maxEnginePower) appliedFilters.enginePower = { min: minEnginePower, max: maxEnginePower };
         if (minDeposit || maxDeposit) appliedFilters.deposit = { min: minDeposit, max: maxDeposit };
+        if (minToilets || maxToilets) appliedFilters.toilets = { min: minToilets, max: maxToilets };
+        if (minLength || maxLength) appliedFilters.length = { min: minLength, max: maxLength };
+        if (minYear || maxYear) appliedFilters.year = { min: minYear, max: maxYear };
+        if (minBerths || maxBerths) appliedFilters.berths = { min: minBerths, max: maxBerths };
+        if (minBeam || maxBeam) appliedFilters.beam = { min: minBeam, max: maxBeam };
+        if (isPremium !== undefined) appliedFilters.isPremium = isPremium;
+        if (onSale !== undefined) appliedFilters.onSale = onSale;
+        if (fuelType) appliedFilters.fuelType = fuelType;
         if (startDate && endDate) appliedFilters.availability = { startDate, endDate };
+        if (startDestination) appliedFilters.startDestination = startDestination;
+        if (endDestination) appliedFilters.endDestination = endDestination;
+        if (country) appliedFilters.country = country;
+        if (region) appliedFilters.region = region;
+        if (location) appliedFilters.location = location;
+        if (free) appliedFilters.free = free;
 
         res.json({
             success: true,
