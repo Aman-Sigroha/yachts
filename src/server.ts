@@ -11,6 +11,7 @@ import yachtRoutes from './routes/yacht.routes';
 import reservationRoutes from './routes/reservation.routes';
 import contactRoutes from './routes/contact.routes';
 import catalogueRoutes from './routes/catalogue.routes';
+import cabinCharterRoutes from './routes/cabin-charter.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -81,6 +82,7 @@ app.use('/api/yachts', yachtRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/catalogue', catalogueRoutes);
+app.use('/api/cabin-charters', cabinCharterRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

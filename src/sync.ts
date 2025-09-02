@@ -224,6 +224,21 @@ export async function getCharterCompanies() {
     return response.data;
 }
 
+// Cabin Charter API functions
+export async function getAllCharterBases() {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/charterBases`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+export async function getAllCharterCompanies() {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/charterCompanies`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
 export async function getYachtsByCompany(charterCompanyId: number, yachtIds?: number[]) {
     const credentials = getCredentials();
     const url = `${BASE_URL}/catalogue/v6/yachts/${charterCompanyId}`;

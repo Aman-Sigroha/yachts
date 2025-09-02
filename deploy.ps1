@@ -61,7 +61,7 @@ Write-Host "⚙️  Copying environment configuration..." -ForegroundColor Yello
 if (Test-Path "env.template") {
     scp -i $PEM_FILE env.template "${SERVER_USER}@${SERVER_IP}:${REMOTE_DIR}/.env"
 } else {
-    Write-Host "No env.template found, you'll need to create .env manually" -ForegroundColor Yellow
+    Write-Host "No env.template found, you will need to create .env manually" -ForegroundColor Yellow
 }
 
 # Install dependencies on server
@@ -93,7 +93,9 @@ ssh -i $PEM_FILE "${SERVER_USER}@${SERVER_IP}" "echo '$serviceContent' | sudo te
 
 # Reload systemd and enable service
 Write-Host "🔄 Enabling and starting service..." -ForegroundColor Yellow
-ssh -i $PEM_FILE "${SERVER_USER}@${SERVER_IP}" "sudo systemctl daemon-reload && sudo systemctl enable $SERVICE_NAME && sudo systemctl start $SERVICE_NAME"
+ssh -i $PEM_FILE "${SERVER_USER}@${SERVER_IP}" "sudo systemctl daemon-reload"
+ssh -i $PEM_FILE "${SERVER_USER}@${SERVER_IP}" "sudo systemctl enable $SERVICE_NAME"
+ssh -i $PEM_FILE "${SERVER_USER}@${SERVER_IP}" "sudo systemctl start $SERVICE_NAME"
 
 # Check service status
 Write-Host "📊 Checking service status..." -ForegroundColor Yellow

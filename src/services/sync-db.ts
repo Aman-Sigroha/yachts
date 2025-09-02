@@ -7,6 +7,7 @@ import { Reservation, Occupancy } from '../models/reservation';
 import { CrewMember } from '../models/crew';
 import { Invoice } from '../models/invoice';
 import { Contact } from '../models/contact';
+import { CabinCharterBase, CabinCharterCompany } from '../models/cabin-charter';
 
 // Helper function to convert string to multilingual text
 const toMultilingualText = (text: string | any) => {
@@ -695,9 +696,9 @@ export const syncJourneyData = async () => {
                         baseToId: option.baseToId,
                         locationFromId: option.locationFromId,
                         locationToId: option.locationToId,
-                        periodFrom: new Date(option.periodFrom.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')),
-                        periodTo: new Date(option.periodTo.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')),
-                        optionTill: new Date(option.optionTill.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')),
+                        periodFrom: option.periodFrom ? new Date(option.periodFrom.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : undefined,
+                        periodTo: option.periodTo ? new Date(option.periodTo.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : undefined,
+                        optionTill: option.optionTill ? new Date(option.optionTill.replace(/(\d{2})\.(\d{2})\.(\d{4})/, '$3-$2-$1')) : undefined,
                         reservationStatus: option.reservationStatus,
                         agency: option.agency,
                         priceListPrice: toNumber(option.priceListPrice),
@@ -742,7 +743,9 @@ export const syncAllData = async () => {
         await syncCrewData();
         await syncInvoiceData();
         await syncContactData();
-                await syncJourneyData();
+        await syncJourneyData();
+        await syncCabinCharterBases();
+        await syncCabinCharterCompanies();
         
         console.log('Full data sync completed successfully');
     } catch (error) {
@@ -857,4 +860,71 @@ async function applyModelSpecsToYachts() {
     } catch (error) {
         console.error('Error applying yacht model specifications:', error);
     }
-}
+};
+
+// Sync cabin charter bases
+export const syncCabinCharterBases = async () => {
+    try {
+        console.log('Starting cabin charter bases sync...');
+        
+        const bases = await api.getAllCharterBases();
+        console.log('Charter bases API response:', JSON.stringify(bases, null, 2));
+        
+        if (bases?.bases) {
+            console.log(`Processing ${bases.bases.length} charter bases...`);
+            for (const base of bases.bases) {
+                const result = await CabinCharterBase.findOneAndUpdate(
+                    { id: base.id },
+                    {
+                        ...base,
+                        // Convert numeric fields that might come as strings from API
+                        lat: toNumber(base.lat),
+                        lon: toNumber(base.lon)
+                    },
+                    { upsert: true, new: true }
+                );
+                console.log(`Saved charter base: ${base.id} - ${base.locationId}`);
+            }
+        } else {
+            console.log('No charter bases found in API response');
+        }
+        
+        console.log('Cabin charter bases sync completed');
+    } catch (error) {
+        console.error('Error syncing cabin charter bases:', error);
+        throw error;
+    }
+};
+
+// Sync cabin charter companies
+export const syncCabinCharterCompanies = async () => {
+    try {
+        console.log('Starting cabin charter companies sync...');
+        
+        const companies = await api.getAllCharterCompanies();
+        console.log('Charter companies API response:', JSON.stringify(companies, null, 2));
+        
+        if (companies?.companies) {
+            console.log(`Processing ${companies.companies.length} charter companies...`);
+            for (const company of companies.companies) {
+                const result = await CabinCharterCompany.findOneAndUpdate(
+                    { id: company.id },
+                    {
+                        ...company,
+                        // Ensure bank accounts array is properly formatted
+                        bankAccounts: company.bankAccounts || []
+                    },
+                    { upsert: true, new: true }
+                );
+                console.log(`Saved charter company: ${company.id} - ${company.name}`);
+            }
+        } else {
+            console.log('No charter companies found in API response');
+        }
+        
+        console.log('Cabin charter companies sync completed');
+    } catch (error) {
+        console.error('Error syncing cabin charter companies:', error);
+        throw error;
+    }
+};

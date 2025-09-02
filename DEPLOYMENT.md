@@ -19,7 +19,7 @@ Complete deployment guide for the Yacht Charter API with automated data synchron
 - **Data Sync**: Nausys API v6 integration
 - **Deployment**: AWS EC2 with systemd service
 - **Automation**: Cron jobs for daily sync
-- **Features**: Advanced filtering, search, catalogue system, yacht availability, location-based filtering with multi-language support, journey-based filtering, free yachts filtering, and comprehensive yacht specification filtering (toilets, length, year, berths, beam, premium status, sale status, fuel type)
+- **Features**: Advanced filtering, search, catalogue system, yacht availability, location-based filtering with multi-language support, journey-based filtering, free yachts filtering, comprehensive yacht specification filtering (toilets, length, year, berths, beam, premium status, sale status, fuel type), and cabin charter API
 
 ## 🚀 **Server Setup**
 
@@ -270,6 +270,15 @@ curl "http://localhost:3000/api/yachts/479287/calendar?year=2025&month=1"
 
 # Test bulk availability
 curl "http://localhost:3000/api/yachts/bulk-availability?yachtIds=479287,479288&startDate=2025-01-15&endDate=2025-01-25"
+
+# Test cabin charter endpoints
+curl "http://localhost:3000/api/cabin-charters/bases?limit=5"
+curl "http://localhost:3000/api/cabin-charters/companies?limit=5"
+curl "http://localhost:3000/api/cabin-charters/filters"
+curl "http://localhost:3000/api/cabin-charters/bases/102755"
+curl "http://localhost:3000/api/cabin-charters/companies/102701"
+curl "http://localhost:3000/api/cabin-charters/bases?companyId=102701&limit=3"
+curl "http://localhost:3000/api/cabin-charters/companies?countryId=1&limit=3"
 ```
 
 ### **3. Test Swagger Documentation**
@@ -479,9 +488,9 @@ tar -czf /backup/yacht-api-$(date +%Y%m%d).tar.gz /home/ubuntu/yacht-api/
 
 ---
 
-**Last Updated**: August 20, 2025  
+**Last Updated**: September 2, 2025  
 **Deployment Guide Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working including date filtering and location-based filtering**
+**Status**: ✅ **PRODUCTION READY - All features working including date filtering, location-based filtering, and cabin charter API**
 
 ---
 

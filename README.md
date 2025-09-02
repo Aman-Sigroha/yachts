@@ -6,15 +6,17 @@ A comprehensive Node.js/TypeScript API for yacht charter management with advance
 
 - **🌐 Production Server**: `http://3.69.225.186:3000`
 - **📚 API Documentation**: `http://3.69.225.186:3000/api-docs`
-- **🚀 All Features Working**: Search, filtering, catalogue, automated sync, availability
+- **🚀 All Features Working**: Search, filtering, catalogue, automated sync, availability, cabin charter API
 - **🔧 Swagger Fixed**: No more YAML syntax errors
 - **🧹 Production Cleaned**: Optimized production environment
+- **🛥️ Cabin Charter API**: New endpoints for cabin charter bases and companies
+- **🔧 Journey Sync Fixed**: Resolved sync errors for complete data synchronization
 
 ## 🎯 **Key Features**
 
 - 🚢 **Comprehensive Yacht Management**: Full CRUD operations for yacht data
 - 📊 **Advanced Filtering & Search**: Multi-parameter filtering, text search, pagination, and date-based availability filtering
-- 🔄 **Automated Data Synchronization**: Daily sync with Nausys API v6
+- 🔄 **Automated Data Synchronization**: Daily sync with Nausys API v6 (including cabin charter data)
 - 🌍 **Multi-language Support**: Handle text in 20+ languages including EN, DE, FR, IT, ES, HR, CZ, HU, LT, LV, NL, NO, PL, RU, SE, SI, SK, TR
 - 🎛️ **Smart Catalogue System**: Active filters with yacht counts
 - 🛡️ **Smart Conflict Resolution**: Prevents duplicate key errors during sync
@@ -25,6 +27,7 @@ A comprehensive Node.js/TypeScript API for yacht charter management with advance
 - 🗺️ **Advanced Location Filtering**: Multi-language country, region, and location filtering with hierarchical data population
 - 🚀 **Journey-Based Filtering**: Filter yachts by actual charter routes (start/end destinations)
 - ✅ **Free Yachts Filtering**: Get only available yachts for specific date ranges with external API integration
+- 🛥️ **Cabin Charter API**: Complete API for cabin charter bases and companies with filtering and pagination
 
 ## 🚀 **Quick Start**
 
@@ -76,6 +79,17 @@ npm start
 - `GET /api/catalogue/countries` - All countries with multi-language names
 - `GET /api/catalogue/regions` - All regions with multi-language names
 - `GET /api/catalogue/locations` - All locations/marinas with multi-language names
+
+### **Cabin Charter API**
+- `GET /api/cabin-charters/bases` - List cabin charter bases with filtering and pagination
+- `GET /api/cabin-charters/bases/:id` - Get specific cabin charter base details
+- `GET /api/cabin-charters/bases/by-company/:companyId` - Get bases by company
+- `GET /api/cabin-charters/bases/by-location/:locationId` - Get bases by location
+- `GET /api/cabin-charters/companies` - List cabin charter companies with filtering and pagination
+- `GET /api/cabin-charters/companies/:id` - Get specific cabin charter company details
+- `GET /api/cabin-charters/companies/by-country/:countryId` - Get companies by country
+- `GET /api/cabin-charters/catalogue` - Combined bases and companies data
+- `GET /api/cabin-charters/filters` - Available filter options for cabin charter data
 
 ### **Other Endpoints**
 - `GET /api/invoices` - Invoice management
@@ -192,6 +206,49 @@ GET /api/yachts?free=true&startDate=2025-06-01&endDate=2025-06-08&startDestinati
 
 **Graceful Fallback**: If the external API is unavailable or returns insufficient data, the system gracefully falls back to returning all yachts (without the free filter) to ensure API stability.
 
+## 🛥️ **Cabin Charter API**
+
+The cabin charter API provides comprehensive access to cabin charter bases and companies data with advanced filtering capabilities.
+
+### **Cabin Charter Base Filtering**
+```bash
+# Filter bases by company
+GET /api/cabin-charters/bases?companyId=102701&limit=5
+
+# Filter bases by location
+GET /api/cabin-charters/bases?locationId=55&limit=5
+
+# Filter bases by disabled status
+GET /api/cabin-charters/bases?disabled=false&limit=5
+
+# Combined filtering
+GET /api/cabin-charters/bases?companyId=102701&locationId=55&disabled=false&limit=5
+
+# Pagination
+GET /api/cabin-charters/bases?page=1&limit=10
+```
+
+### **Cabin Charter Company Filtering**
+```bash
+# Filter companies by country
+GET /api/cabin-charters/companies?countryId=1&limit=5
+
+# Filter companies by city
+GET /api/cabin-charters/companies?city=Zagreb&limit=5
+
+# Filter companies by PAC status
+GET /api/cabin-charters/companies?pac=false&limit=5
+
+# Combined filtering
+GET /api/cabin-charters/companies?countryId=1&city=Zagreb&pac=false&limit=5
+```
+
+### **Cabin Charter Data Structure**
+- **Bases**: Charter base locations with coordinates, check-in/out times, and company associations
+- **Companies**: Charter companies with contact details, bank accounts, and service information
+- **Multi-language Support**: Base and company information in multiple languages
+- **Geographic Data**: Complete location information with coordinates for mapping
+
 ## 🎯 **Key Features Explained**
 
 ### **Smart Catalogue System**
@@ -261,6 +318,10 @@ npm run test         # Run tests
 - **Service**: Available services
 - **YachtBuilder**: Manufacturer information
 - **CharterCompany**: Company details
+
+### **Cabin Charter Entities**
+- **CabinCharterBase**: Charter base locations with coordinates, check-in/out times, and company associations
+- **CabinCharterCompany**: Charter companies with contact details, bank accounts, and service information
 
 ## 🚀 **Deployment**
 
@@ -348,9 +409,9 @@ npm run test         # Run tests
 
 ---
 
-**Last Updated**: August 20, 2025  
+**Last Updated**: September 2, 2025  
 **API Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working including journey-based filtering, free yachts filtering, advanced location filtering, and comprehensive yacht specification filtering**
+**Status**: ✅ **PRODUCTION READY - All features working including journey-based filtering, free yachts filtering, advanced location filtering, comprehensive yacht specification filtering, and cabin charter API**
 
 ---
 
