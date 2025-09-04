@@ -3,11 +3,16 @@ import { connectDB } from '../db/connection';
 import * as api from '../sync';
 import { Base, Country, Equipment, YachtCategory, Service, YachtBuilder, CharterCompany, Region, Location, Journey } from '../models/catalogue';
 import { Yacht, YachtModel } from '../models/yacht';
+import { YachtEquipment } from '../models/yacht-equipment';
+import { YachtService } from '../models/yacht-services';
+import { YachtPricing } from '../models/yacht-pricing';
+import { YachtRating } from '../models/yacht-ratings';
 import { Reservation, Occupancy } from '../models/reservation';
 import { CrewMember } from '../models/crew';
 import { Invoice } from '../models/invoice';
 import { Contact } from '../models/contact';
 import { CabinCharterBase, CabinCharterCompany } from '../models/cabin-charter';
+import { FreeCabinPackage, FreeCabinSearchCriteria } from '../models/free-cabin-charter';
 
 // Helper function to convert string to multilingual text
 const toMultilingualText = (text: string | any) => {
@@ -245,92 +250,137 @@ export const syncYachtData = async () => {
                 if (yachts?.yachts) {
                     console.log(`Processing ${yachts.yachts.length} yachts for company ${company.id}...`);
                     for (const yacht of yachts.yachts) {
+                        // Get full yacht details including equipment and pictures
+                        console.log(`Fetching full details for yacht ${yacht.id}...`);
+                        const fullYachtData = await api.getSingleYacht(yacht.id);
+                        const fullYacht = fullYachtData?.yachts?.[0] || yacht;
                         // Smart mapping: Find yacht model specifications by name matching
                         let modelSpecs = null;
-                        if (yacht.yachtModelId || yacht.modelId) {
-                            const modelId = yacht.yachtModelId || yacht.modelId;
+                        if (fullYacht.yachtModelId || fullYacht.modelId) {
+                            const modelId = fullYacht.yachtModelId || fullYacht.modelId;
                             modelSpecs = await YachtModel.findOne({ id: modelId });
                             if (modelSpecs) {
-                                console.log(`Found model specs by ID for yacht ${yacht.id}: LOA=${modelSpecs.loa}m, Beam=${modelSpecs.beam}m`);
+                                console.log(`Found model specs by ID for yacht ${fullYacht.id}: LOA=${modelSpecs.loa}m, Beam=${modelSpecs.beam}m`);
                             }
                         }
                         
                         // If no model found by ID, try to find by name matching
-                        if (!modelSpecs && yacht.name?.textEN) {
-                            const yachtName = yacht.name.textEN.toLowerCase();
+                        if (!modelSpecs && fullYacht.name?.textEN) {
+                            const yachtName = fullYacht.name.textEN.toLowerCase();
                             // Look for yacht models with similar names
                             const allModels = await YachtModel.find({});
                             for (const model of allModels) {
                                 if (model.name?.textEN && yachtName.includes(model.name.textEN.toLowerCase())) {
                                     modelSpecs = model;
-                                    console.log(`Found model specs by name matching for yacht ${yacht.id}: LOA=${modelSpecs.loa}m, Beam=${modelSpecs.beam}m`);
+                                    console.log(`Found model specs by name matching for yacht ${fullYacht.id}: LOA=${modelSpecs.loa}m, Beam=${modelSpecs.beam}m`);
                                     break;
                                 }
                             }
                         }
                         
                         if (!modelSpecs) {
-                            console.log(`No yacht model specs found for yacht ${yacht.id} (${yacht.name?.textEN || 'unnamed'})`);
+                            console.log(`No yacht model specs found for yacht ${fullYacht.id} (${fullYacht.name?.textEN || 'unnamed'})`);
                         }
 
                         const result = await Yacht.findOneAndUpdate(
-                            { id: yacht.id },
+                            { id: fullYacht.id },
                             {
-                                ...yacht,
+                                ...fullYacht,
                                 charterCompanyId: company.id,
-                                name: toMultilingualText(yacht.name),
-                                description: toMultilingualText(yacht.description),
-                                highlights: toMultilingualText(yacht.highlights),
-                                note: toMultilingualText(yacht.note),
+                                builderId: fullYacht.yachtBuilderId || modelSpecs?.builderId, // ✅ Fix: Get builderId from yacht or model
+                                modelId: fullYacht.yachtModelId, // ✅ Fix: Map yachtModelId to modelId
+                                name: toMultilingualText(fullYacht.name),
+                                description: toMultilingualText(fullYacht.description),
+                                highlights: toMultilingualText(fullYacht.highlights),
+                                note: toMultilingualText(fullYacht.note),
                                 // Convert numeric fields that might come as strings from API
-                                length: toNumber(yacht.length || modelSpecs?.loa), // Use yacht.length or fallback to model.loa
-                                cabins: toNumber(yacht.cabins),
-                                berths: toNumber(yacht.berthsTotal || yacht.berths), // Use berthsTotal from Nausys API
-                                wc: toNumber(yacht.wc),
-                                year: toNumber(yacht.buildYear || yacht.year), // Use buildYear from Nausys API
-                                draft: toNumber(yacht.draft || modelSpecs?.draft), // Use yacht.draft or fallback to model.draft
-                                beam: toNumber(yacht.beam || modelSpecs?.beam), // Use yacht.beam or fallback to model.beam
-                                deposit: toNumber(yacht.deposit),
-                                fuelCapacity: toNumber(yacht.fuelCapacity || modelSpecs?.fuelTank), // Use yacht.fuelCapacity or fallback to model.fuelTank
-                                waterCapacity: toNumber(yacht.waterCapacity || modelSpecs?.waterTank), // Use yacht.waterCapacity or fallback to model.waterTank
-                                enginePower: toNumber(yacht.enginePower),
-                                engineCount: toNumber(yacht.engines || yacht.engineCount), // Use engines from Nausys API
+                                length: toNumber(fullYacht.length || modelSpecs?.loa), // Use yacht.length or fallback to model.loa
+                                cabins: toNumber(fullYacht.cabins),
+                                berths: toNumber(fullYacht.berthsTotal || fullYacht.berths), // Use berthsTotal from Nausys API
+                                wc: toNumber(fullYacht.wc),
+                                year: toNumber(fullYacht.buildYear || fullYacht.year), // Use buildYear from Nausys API
+                                draft: toNumber(fullYacht.draft || modelSpecs?.draft), // Use yacht.draft or fallback to model.draft
+                                beam: toNumber(fullYacht.beam || modelSpecs?.beam), // Use yacht.beam or fallback to model.beam
+                                deposit: toNumber(fullYacht.deposit),
+                                fuelCapacity: toNumber(fullYacht.fuelCapacity || modelSpecs?.fuelTank), // Use yacht.fuelCapacity or fallback to model.fuelTank
+                                waterCapacity: toNumber(fullYacht.waterCapacity || modelSpecs?.waterTank), // Use yacht.waterCapacity or fallback to model.waterTank
+                                enginePower: toNumber(fullYacht.enginePower),
+                                engineCount: toNumber(fullYacht.engines || fullYacht.engineCount), // Use engines from Nausys API
                                 // Handle optional numeric fields
-                                refit: yacht.refit ? toNumber(yacht.refit) : undefined,
-                                engineBuilderId: yacht.engineBuilderId ? toNumber(yacht.engineBuilderId) : undefined,
-                                engineBuildYear: yacht.engineBuildYear ? toNumber(yacht.engineBuildYear) : undefined,
-                                sailArea: yacht.sailArea ? toNumber(yacht.sailArea) : undefined,
-                                depositWhenInsured: yacht.depositWhenInsured ? toNumber(yacht.depositWhenInsured) : undefined,
-                                crewCount: yacht.crewCount ? toNumber(yacht.crewCount) : undefined,
-                                maxDiscountFromCommission: yacht.maxDiscountFromCommission ? toNumber(yacht.maxDiscountFromCommission) : undefined,
-                                showers: yacht.showers ? toNumber(yacht.showers) : undefined,
-                                showersCrew: yacht.showersCrew ? toNumber(yacht.showersCrew) : undefined,
-                                recommendedPersons: yacht.recommendedPersons ? toNumber(yacht.recommendedPersons) : undefined,
-                                fuelConsumption: yacht.fuelConsumption ? toNumber(yacht.fuelConsumption) : undefined,
-                                maxSpeed: yacht.maxSpeed ? toNumber(yacht.maxSpeed) : undefined,
-                                cruisingSpeed: yacht.cruisingSpeed ? toNumber(yacht.cruisingSpeed) : undefined,
+                                refit: fullYacht.refit ? toNumber(fullYacht.refit) : undefined,
+                                engineBuilderId: fullYacht.engineBuilderId ? toNumber(fullYacht.engineBuilderId) : undefined,
+                                engineBuildYear: fullYacht.engineBuildYear ? toNumber(fullYacht.engineBuildYear) : undefined,
+                                sailArea: fullYacht.sailArea ? toNumber(fullYacht.sailArea) : undefined,
+                                depositWhenInsured: fullYacht.depositWhenInsured ? toNumber(fullYacht.depositWhenInsured) : undefined,
+                                crewCount: fullYacht.crewCount ? toNumber(fullYacht.crewCount) : undefined,
+                                maxDiscountFromCommission: fullYacht.maxDiscountFromCommission ? toNumber(fullYacht.maxDiscountFromCommission) : undefined,
+                                showers: fullYacht.showers ? toNumber(fullYacht.showers) : undefined,
+                                showersCrew: fullYacht.showersCrew ? toNumber(fullYacht.showersCrew) : undefined,
+                                recommendedPersons: fullYacht.recommendedPersons ? toNumber(fullYacht.recommendedPersons) : undefined,
+                                fuelConsumption: fullYacht.fuelConsumption ? toNumber(fullYacht.fuelConsumption) : undefined,
+                                maxSpeed: fullYacht.maxSpeed ? toNumber(fullYacht.maxSpeed) : undefined,
+                                cruisingSpeed: fullYacht.cruisingSpeed ? toNumber(fullYacht.cruisingSpeed) : undefined,
                                 // New fields from Nausys API
-                                berthsCabin: yacht.berthsCabin ? toNumber(yacht.berthsCabin) : undefined,
-                                berthsSalon: yacht.berthsSalon ? toNumber(yacht.berthsSalon) : undefined,
-                                berthsCrew: yacht.berthsCrew ? toNumber(yacht.berthsCrew) : undefined,
-                                sailTypeId: yacht.sailTypeId ? toNumber(yacht.sailTypeId) : undefined,
-                                sailRenewed: yacht.sailRenewed ? toNumber(yacht.sailRenewed) : undefined,
-                                genoaTypeId: yacht.genoaTypeId ? toNumber(yacht.genoaTypeId) : undefined,
-                                genoaRenewed: yacht.genoaTypeId ? toNumber(yacht.genoaRenewed) : undefined,
-                                steeringTypeId: yacht.steeringTypeId ? toNumber(yacht.steeringTypeId) : undefined,
-                                fourStarCharter: yacht.fourStarCharter || false,
-                                propulsionType: yacht.propulsionType || undefined,
-                                charterType: yacht.charterType || undefined,
+                                berthsCabin: fullYacht.berthsCabin ? toNumber(fullYacht.berthsCabin) : undefined,
+                                berthsSalon: fullYacht.berthsSalon ? toNumber(fullYacht.berthsSalon) : undefined,
+                                berthsCrew: fullYacht.berthsCrew ? toNumber(fullYacht.berthsCrew) : undefined,
+                                sailTypeId: fullYacht.sailTypeId ? toNumber(fullYacht.sailTypeId) : undefined,
+                                sailRenewed: fullYacht.sailRenewed ? toNumber(fullYacht.sailRenewed) : undefined,
+                                genoaTypeId: fullYacht.genoaTypeId ? toNumber(fullYacht.genoaTypeId) : undefined,
+                                genoaRenewed: fullYacht.genoaTypeId ? toNumber(fullYacht.genoaRenewed) : undefined,
+                                steeringTypeId: fullYacht.steeringTypeId ? toNumber(fullYacht.steeringTypeId) : undefined,
+                                fourStarCharter: fullYacht.fourStarCharter || false,
+                                propulsionType: fullYacht.propulsionType || undefined,
+                                charterType: fullYacht.charterType || undefined,
                                 // Model specifications (merged from yacht model)
                                 modelLoa: modelSpecs?.loa,
                                 modelBeam: modelSpecs?.beam,
                                 modelDraft: modelSpecs?.draft,
                                 modelDisplacement: modelSpecs?.displacement,
-                                modelVirtualLength: modelSpecs?.virtualLength
+                                modelVirtualLength: modelSpecs?.virtualLength,
+                                
+                                // Equipment mapping from Nausys API
+                                standardEquipment: fullYacht.standardYachtEquipment ? fullYacht.standardYachtEquipment.map((eq: any) => ({
+                                    id: eq.id,
+                                    name: { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' }, // Will be populated from equipment catalogue
+                                    category: 'Standard',
+                                    quantity: eq.quantity,
+                                    isStandard: true,
+                                    isOptional: false,
+                                    highlight: eq.highlight || false,
+                                    comment: eq.comment || {}
+                                })) : [],
+                                
+                                // Pictures mapping from Nausys API with size parameters
+                                picturesUrl: fullYacht.picturesURL ? fullYacht.picturesURL.map((url: string) => {
+                                    // Add size parameters to Nausys picture URLs
+                                    if (url.includes('ws.nausys.com/CBMS-external/rest/yacht') && url.includes('/pictures/')) {
+                                        const separator = url.includes('?') ? '&' : '?';
+                                        return `${url}${separator}w=600&h=600`;
+                                    }
+                                    return url;
+                                }) : [],
+                                
+                                // Main picture URL with size parameters
+                                mainPictureUrl: fullYacht.mainPictureUrl ? (() => {
+                                    const url = fullYacht.mainPictureUrl;
+                                    if (url.includes('ws.nausys.com/CBMS-external/rest/yacht') && url.includes('/pictures/')) {
+                                        const separator = url.includes('?') ? '&' : '?';
+                                        return `${url}${separator}w=600&h=600`;
+                                    }
+                                    return url;
+                                })() : fullYacht.mainPictureUrl,
+                                
+                                // Video fields from Nausys API
+                                youtubeVideos: fullYacht.youtubeVideos || '',
+                                vimeoVideos: fullYacht.vimeoVideos || '',
+                                linkFor360tour: fullYacht.linkFor360tour || '',
+                                yachtTutorialVimeoVideos: fullYacht.yachtTutorialVimeoVideos || '',
+                                yachtTutorialYoutubeVideos: fullYacht.yachtTutorialYoutubeVideos || ''
                             },
                             { upsert: true, new: true }
                         );
-                        console.log(`Saved yacht: ${yacht.id} for company ${company.id}`);
+                        console.log(`Saved yacht: ${fullYacht.id} for company ${company.id}`);
                     }
                 } else if (yachts?.yachtIDs) {
                     // If we only got yacht IDs, fetch each yacht individually
@@ -371,14 +421,16 @@ export const syncYachtData = async () => {
                                 {
                                     ...yacht,
                                     charterCompanyId: company.id,
+                                    builderId: yacht.yachtBuilderId || modelSpecs?.builderId, // ✅ Fix: Get builderId from yacht or model
+                                    modelId: yacht.yachtModelId, // ✅ Fix: Map yachtModelId to modelId
                                     name: toMultilingualText(yacht.name),
-                                    description: toMultilingualText(yacht.description),
-                                    highlights: toMultilingualText(yacht.highlights),
+                                    description: yacht.description ? toMultilingualText(yacht.description) : { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' },
+                                    highlights: yacht.highlightsIntText ? toMultilingualText(yacht.highlightsIntText) : (yacht.highlights ? { textEN: yacht.highlights, textDE: yacht.highlights, textFR: yacht.highlights, textIT: yacht.highlights, textES: yacht.highlights, textHR: yacht.highlights } : { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' }),
                                     note: toMultilingualText(yacht.note),
                                     // Convert numeric fields that might come as strings from API
                                     length: toNumber(yacht.length || modelSpecs?.loa), // Use yacht.length or fallback to model.loa
                                     cabins: toNumber(yacht.cabins),
-                                    berths: toNumber(yacht.berthsTotal || yacht.berths), // Use berthsTotal from Nausys API
+                                    berths: toNumber(yacht.berths || yacht.berthsTotal), // Use berths from Nausys API, fallback to berthsTotal
                                     wc: toNumber(yacht.wc),
                                     year: toNumber(yacht.buildYear || yacht.year), // Use buildYear from Nausys API
                                     draft: toNumber(yacht.draft || modelSpecs?.draft), // Use yacht.draft or fallback to model.draft
@@ -419,7 +471,62 @@ export const syncYachtData = async () => {
                                     modelBeam: modelSpecs?.beam,
                                     modelDraft: modelSpecs?.draft,
                                     modelDisplacement: modelSpecs?.displacement,
-                                    modelVirtualLength: modelSpecs?.virtualLength
+                                    modelVirtualLength: modelSpecs?.virtualLength,
+                                    
+                                    // Equipment mapping from Nausys API
+                                    standardEquipment: yacht.standardYachtEquipment ? yacht.standardYachtEquipment.map((eq: any) => ({
+                                        id: eq.id,
+                                        name: { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' }, // Will be populated from equipment catalogue
+                                        category: 'Standard',
+                                        quantity: eq.quantity || 1,
+                                        isStandard: true,
+                                        isOptional: false
+                                    })) : [],
+                                    
+                                    // Pictures mapping from Nausys API
+                                    picturesUrl: yacht.picturesURL || [],
+                                    
+                                    // Additional missing fields from Nausys API
+                                    berthsTotal: yacht.berthsTotal ? toNumber(yacht.berthsTotal) : undefined,
+                                    maxPersons: yacht.maxPersons ? toNumber(yacht.maxPersons) : undefined,
+                                    buildYear: yacht.buildYear ? toNumber(yacht.buildYear) : undefined,
+                                    renewed: yacht.renewed ? toNumber(yacht.renewed) : undefined,
+                                    launchedYear: yacht.launchedYear ? toNumber(yacht.launchedYear) : undefined,
+                                    fuelTank: yacht.fuelTank ? toNumber(yacht.fuelTank) : undefined,
+                                    waterTank: yacht.waterTank ? toNumber(yacht.waterTank) : undefined,
+                                    mastLength: yacht.mastLength ? toNumber(yacht.mastLength) : undefined,
+                                    commission: yacht.commission ? toNumber(yacht.commission) : undefined,
+                                    depositCurrency: yacht.depositCurrency || undefined,
+                                    maxDiscount: yacht.maxDiscount ? toNumber(yacht.maxDiscount) : undefined,
+                                    needsOptionApproval: yacht.needsOptionApproval || false,
+                                    
+                                    // Critical missing fields from Nausys API
+                                    locationId: yacht.locationId ? toNumber(yacht.locationId) : undefined,
+                                    cabinsCrew: yacht.cabinsCrew ? toNumber(yacht.cabinsCrew) : undefined,
+                                    wcCrew: yacht.wcCrew ? toNumber(yacht.wcCrew) : undefined,
+                                    engines: yacht.engines ? toNumber(yacht.engines) : undefined,
+                                    engineRenewedYear: yacht.engineRenewedYear ? toNumber(yacht.engineRenewedYear) : undefined,
+                                    numberOfRudderBlades: yacht.numberOfRudderBlades ? toNumber(yacht.numberOfRudderBlades) : undefined,
+                                    crewedCharterType: yacht.crewedCharterType || undefined,
+                                    hullColor: yacht.hullColor || undefined,
+                                    thirdPartyInsuranceAmount: yacht.thirdPartyInsuranceAmount ? toNumber(yacht.thirdPartyInsuranceAmount) : undefined,
+                                    thirdPartyInsuranceCurrency: yacht.thirdPartyInsuranceCurrency || undefined,
+                                    checkInTime: yacht.checkInTime || undefined,
+                                    checkOutTime: yacht.checkOutTime || undefined,
+                                    crewMemberIds: yacht.crewMemberIds || [],
+                                    highlightsIntText: yacht.highlightsIntText ? toMultilingualText(yacht.highlightsIntText) : undefined,
+                                    noteIntText: yacht.noteIntText ? toMultilingualText(yacht.noteIntText) : undefined,
+                                    flagsid: yacht.flagsid || [],
+                                    canMakeBookingFixed: yacht.canMakeBookingFixed || false,
+                                    seasonSpecificData: yacht.seasonSpecificData || [],
+                                    euminia: yacht.euminia || undefined,
+                                    
+                                    // Video fields (as strings, not arrays)
+                                    youtubeVideos: yacht.youtubeVideos || '',
+                                    vimeoVideos: yacht.vimeoVideos || '',
+                                    linkFor360tour: yacht.linkFor360tour || '',
+                                    yachtTutorialVimeoVideos: yacht.yachtTutorialVimeoVideos || '',
+                                    yachtTutorialYoutubeVideos: yacht.yachtTutorialYoutubeVideos || ''
                                 },
                                 { upsert: true, new: true }
                             );
@@ -447,6 +554,7 @@ export const syncYachtData = async () => {
                     { id: model.id },
                     { 
                         ...model, 
+                        builderId: model.yachtBuilderId, // ✅ Fix: Map yachtBuilderId to builderId
                         name: toMultilingualText(model.name),
                         // Convert numeric specifications that might come as strings
                         loa: toNumber(model.loa),
@@ -592,6 +700,7 @@ export const syncInvoiceData = async () => {
         const invoiceTypes: ('base' | 'agency' | 'owner')[] = ['base', 'agency', 'owner'];
 
         for (const type of invoiceTypes) {
+            try {
             console.log(`Fetching ${type} invoices...`);
             const invoices = await api.getInvoices(type);
             console.log(`${type} invoices API response:`, JSON.stringify(invoices, null, 2));
@@ -636,6 +745,10 @@ export const syncInvoiceData = async () => {
                 }
             } else {
                 console.log(`No ${type} invoices found in API response`);
+            }
+            } catch (error) {
+                console.warn(`Error syncing ${type} invoices:`, error instanceof Error ? error.message : String(error));
+                // Continue with other invoice types even if one fails
             }
         }
 
@@ -723,6 +836,288 @@ export const syncJourneyData = async () => {
     }
 };
 
+// Sync yacht equipment data
+export const syncYachtEquipmentData = async () => {
+    try {
+        await connectDB();
+        console.log('Starting yacht equipment data sync...');
+
+        // Get all yachts
+        const yachts = await Yacht.find({}).select('id').limit(10); // Limit for testing
+        console.log(`Processing equipment for ${yachts.length} yachts...`);
+
+        // Get yacht data by company instead of individual yacht details
+        const companies = await CabinCharterCompany.find({}).select('id');
+        console.log(`Processing equipment for ${companies.length} companies...`);
+
+        for (const company of companies) {
+            try {
+                console.log(`Fetching yachts for company ${company.id}...`);
+                const yachtData = await api.getYachtsByCompany(company.id);
+                
+                if (yachtData?.yachts) {
+                    console.log(`Processing ${yachtData.yachts.length} yachts for company ${company.id}...`);
+                    
+                    for (const yacht of yachtData.yachts) {
+                        // Process standard equipment
+                        if (yacht.standardYachtEquipment) {
+                            console.log(`Processing ${yacht.standardYachtEquipment.length} standard equipment items for yacht ${yacht.id}...`);
+                            
+                            for (const equipmentItem of yacht.standardYachtEquipment) {
+                                await YachtEquipment.findOneAndUpdate(
+                                    { id: equipmentItem.id },
+                                    {
+                                        id: equipmentItem.id,
+                                        yachtId: yacht.id,
+                                        equipmentId: equipmentItem.equipmentId,
+                                        quantity: toNumber(equipmentItem.quantity),
+                                        comment: equipmentItem.comment || '',
+                                        isStandard: true,
+                                        isOptional: false,
+                                        category: 'Standard'
+                                    },
+                                    { upsert: true, new: true }
+                                );
+                            }
+                        }
+
+                        // Process additional equipment from season data
+                        if (yacht.seasonSpecificData) {
+                            for (const seasonData of yacht.seasonSpecificData) {
+                                if (seasonData.additionalYachtEquipment) {
+                                    console.log(`Processing ${seasonData.additionalYachtEquipment.length} additional equipment items for yacht ${yacht.id}...`);
+                                    for (const equipmentItem of seasonData.additionalYachtEquipment) {
+                                        await YachtEquipment.findOneAndUpdate(
+                                            { id: equipmentItem.id },
+                                            {
+                                                id: equipmentItem.id,
+                                                yachtId: yacht.id,
+                                                equipmentId: equipmentItem.equipmentId,
+                                                quantity: toNumber(equipmentItem.quantity),
+                                                comment: equipmentItem.comment || '',
+                                                isStandard: false,
+                                                isOptional: true,
+                                                category: 'Additional',
+                                                price: toNumber(equipmentItem.price),
+                                                seasonId: seasonData.seasonId
+                                            },
+                                            { upsert: true, new: true }
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Error syncing equipment for company ${company.id}:`, error);
+                // Continue with other companies
+            }
+        }
+
+        console.log('Yacht equipment data sync completed');
+    } catch (error) {
+        console.error('Error syncing yacht equipment data:', error);
+        throw error;
+    }
+};
+
+// Sync yacht services data
+export const syncYachtServicesData = async () => {
+    try {
+        await connectDB();
+        console.log('Starting yacht services data sync...');
+
+        // Get all yachts
+        const yachts = await Yacht.find({}).select('id').limit(10); // Limit for testing
+        console.log(`Processing services for ${yachts.length} yachts...`);
+
+        // Get yacht data by company instead of individual yacht details
+        const companies = await CabinCharterCompany.find({}).select('id');
+        console.log(`Processing services for ${companies.length} companies...`);
+
+        for (const company of companies) {
+            try {
+                console.log(`Fetching yachts for company ${company.id}...`);
+                const yachtData = await api.getYachtsByCompany(company.id);
+                
+                if (yachtData?.yachts) {
+                    console.log(`Processing ${yachtData.yachts.length} yachts for company ${company.id}...`);
+                    
+                    for (const yacht of yachtData.yachts) {
+                        // Process services from season data
+                        if (yacht.seasonSpecificData) {
+                            for (const seasonData of yacht.seasonSpecificData) {
+                                if (seasonData.services) {
+                                    console.log(`Processing ${seasonData.services.length} services for yacht ${yacht.id}...`);
+                                    for (const service of seasonData.services) {
+                                        await YachtService.findOneAndUpdate(
+                                            { id: service.id },
+                                            {
+                                                id: service.id,
+                                                yachtId: yacht.id,
+                                                serviceId: service.serviceId,
+                                                name: toMultilingualText(service.description),
+                                                description: toMultilingualText(service.description),
+                                                price: toNumber(service.price),
+                                                isObligatory: service.obligatory || false,
+                                                isOptional: !service.obligatory,
+                                                category: 'Additional',
+                                                seasonId: seasonData.seasonId
+                                            },
+                                            { upsert: true, new: true }
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Error syncing services for company ${company.id}:`, error);
+                // Continue with other companies
+            }
+        }
+
+        console.log('Yacht services data sync completed');
+    } catch (error) {
+        console.error('Error syncing yacht services data:', error);
+        throw error;
+    }
+};
+
+// Sync yacht pricing data
+export const syncYachtPricingData = async () => {
+    try {
+        await connectDB();
+        console.log('Starting yacht pricing data sync...');
+
+        // Get all yachts
+        const yachts = await Yacht.find({}).select('id').limit(10); // Limit for testing
+        console.log(`Processing pricing for ${yachts.length} yachts...`);
+
+        // Get yacht data by company instead of individual yacht details
+        const companies = await CabinCharterCompany.find({}).select('id');
+        console.log(`Processing pricing for ${companies.length} companies...`);
+
+        for (const company of companies) {
+            try {
+                console.log(`Fetching yachts for company ${company.id}...`);
+                const yachtData = await api.getYachtsByCompany(company.id);
+                
+                if (yachtData?.yachts) {
+                    console.log(`Processing ${yachtData.yachts.length} yachts for company ${company.id}...`);
+                    
+                    for (const yacht of yachtData.yachts) {
+                        // Process pricing from season data
+                        if (yacht.seasonSpecificData) {
+                            for (const seasonData of yacht.seasonSpecificData) {
+                                if (seasonData.prices) {
+                                    console.log(`Processing ${seasonData.prices.length} pricing entries for yacht ${yacht.id}...`);
+                                    for (const pricing of seasonData.prices) {
+                                        // Parse dates from DD.MM.YYYY format
+                                        const parseDate = (dateStr: string) => {
+                                            const [day, month, year] = dateStr.split('.');
+                                            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+                                        };
+
+                                        await YachtPricing.findOneAndUpdate(
+                                            { id: pricing.id },
+                                            {
+                                                id: pricing.id,
+                                                yachtId: yacht.id,
+                                                seasonId: seasonData.seasonId,
+                                                startDate: parseDate(pricing.dateFrom),
+                                                endDate: parseDate(pricing.dateTo),
+                                                period: pricing.type,
+                                                weeklyPrice: toNumber(pricing.price),
+                                                currency: pricing.currency,
+                                                isActive: true
+                                            },
+                                            { upsert: true, new: true }
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Error syncing pricing for company ${company.id}:`, error);
+                // Continue with other companies
+            }
+        }
+
+        console.log('Yacht pricing data sync completed');
+    } catch (error) {
+        console.error('Error syncing yacht pricing data:', error);
+        throw error;
+    }
+};
+
+// Sync yacht ratings data
+export const syncYachtRatingsData = async () => {
+    try {
+        await connectDB();
+        console.log('Starting yacht ratings data sync...');
+
+        // Get all yachts
+        const yachts = await Yacht.find({}).select('id').limit(10); // Limit for testing
+        console.log(`Processing ratings for ${yachts.length} yachts...`);
+
+        // Get yacht data by company instead of individual yacht details
+        const companies = await CabinCharterCompany.find({}).select('id');
+        console.log(`Processing ratings for ${companies.length} companies...`);
+
+        for (const company of companies) {
+            try {
+                console.log(`Fetching yachts for company ${company.id}...`);
+                const yachtData = await api.getYachtsByCompany(company.id);
+                
+                if (yachtData?.yachts) {
+                    console.log(`Processing ${yachtData.yachts.length} yachts for company ${company.id}...`);
+                    
+                    for (const yacht of yachtData.yachts) {
+                        // Process euminia ratings if available
+                        if (yacht.euminia) {
+                            console.log(`Processing euminia ratings for yacht ${yacht.id}...`);
+                            
+                            await YachtRating.findOneAndUpdate(
+                                { yachtId: yacht.id, source: 'euminia' },
+                                {
+                                    yachtId: yacht.id,
+                                    source: 'euminia',
+                                    reviewDate: new Date(),
+                                    ratings: {
+                                        cleanliness: toNumber(yacht.euminia.cleanliness),
+                                        equipment: toNumber(yacht.euminia.equipment),
+                                        personalService: toNumber(yacht.euminia.personalService),
+                                        pricePerformance: toNumber(yacht.euminia.pricePerformance),
+                                        recommendation: toNumber(yacht.euminia.recommendation),
+                                        overall: toNumber(yacht.euminia.total)
+                                    },
+                                    totalReviews: toNumber(yacht.euminia.reviews),
+                                    isPublished: true
+                                },
+                                { upsert: true, new: true }
+                            );
+                            console.log(`Saved euminia ratings for yacht ${yacht.id}`);
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error(`Error syncing ratings for company ${company.id}:`, error);
+                // Continue with other companies
+            }
+        }
+
+        console.log('Yacht ratings data sync completed');
+    } catch (error) {
+        console.error('Error syncing yacht ratings data:', error);
+        throw error;
+    }
+};
+
 export const syncAllData = async () => {
     try {
         console.log('Starting full data sync...');
@@ -738,14 +1133,68 @@ export const syncAllData = async () => {
         }
         
         await syncCatalogueData();
+        
+        // Try to sync yacht data, but don't fail the entire sync if it fails
+        try {
         await syncYachtData();
+        } catch (error) {
+            console.warn('Yacht data sync failed, continuing with other data:', error instanceof Error ? error.message : String(error));
+        }
+        
+        // Try to sync reservation data, but don't fail the entire sync if it fails
+        try {
         await syncReservationData();
+        } catch (error) {
+            console.warn('Reservation data sync failed, continuing with other data:', error instanceof Error ? error.message : String(error));
+        }
+        
+        // Try to sync crew data, but don't fail the entire sync if it fails
+        try {
         await syncCrewData();
+        } catch (error) {
+            console.warn('Crew data sync failed, continuing with other data:', error instanceof Error ? error.message : String(error));
+        }
+        
+        // Try to sync invoice data, but don't fail the entire sync if it fails
+        try {
         await syncInvoiceData();
+        } catch (error) {
+            console.warn('Invoice sync failed, continuing with other data:', error instanceof Error ? error.message : String(error));
+        }
+        
         await syncContactData();
         await syncJourneyData();
         await syncCabinCharterBases();
         await syncCabinCharterCompanies();
+        
+        // Sync additional yacht data (with error handling)
+        try {
+            await syncYachtEquipmentData();
+        } catch (error) {
+            console.warn('Yacht equipment sync failed, continuing:', error instanceof Error ? error.message : String(error));
+        }
+        
+        try {
+            await syncYachtServicesData();
+        } catch (error) {
+            console.warn('Yacht services sync failed, continuing:', error instanceof Error ? error.message : String(error));
+        }
+        
+        try {
+            await syncYachtPricingData();
+        } catch (error) {
+            console.warn('Yacht pricing sync failed, continuing:', error instanceof Error ? error.message : String(error));
+        }
+        
+        try {
+            await syncYachtRatingsData();
+        } catch (error) {
+            console.warn('Yacht ratings sync failed, continuing:', error instanceof Error ? error.message : String(error));
+        }
+        
+        // Sync Free Cabin Charter data
+        await syncFreeCabinSearchCriteria();
+        await syncCurrentWeekFreeCabinPackages();
         
         console.log('Full data sync completed successfully');
     } catch (error) {
@@ -925,6 +1374,166 @@ export const syncCabinCharterCompanies = async () => {
         console.log('Cabin charter companies sync completed');
     } catch (error) {
         console.error('Error syncing cabin charter companies:', error);
+        throw error;
+    }
+};
+
+// Sync free cabin package search criteria
+export const syncFreeCabinSearchCriteria = async () => {
+    try {
+        console.log('Starting free cabin search criteria sync...');
+        
+        const criteria = await api.getFreeCabinPackageSearchCriteria();
+        console.log('Free cabin search criteria API response:', JSON.stringify(criteria, null, 2));
+        
+        if (criteria?.status === 'OK') {
+            // Clear existing criteria
+            await FreeCabinSearchCriteria.deleteMany({});
+            
+            const result = await FreeCabinSearchCriteria.create({
+                countries: criteria.countries || [],
+                regions: criteria.regions || [],
+                locations: criteria.locations || [],
+                packages: criteria.packages || [],
+                lastUpdated: new Date()
+            });
+            
+            console.log(`Saved free cabin search criteria: ${result._id}`);
+        } else {
+            console.log('No search criteria found in API response');
+        }
+        
+        console.log('Free cabin search criteria sync completed');
+    } catch (error) {
+        console.error('Error syncing free cabin search criteria:', error);
+        throw error;
+    }
+};
+
+// Sync free cabin packages for a specific period
+export const syncFreeCabinPackages = async (periodFrom: string, periodTo: string, filters?: {
+    locations?: number[];
+    countries?: number[];
+    regions?: number[];
+    packages?: number[];
+    ignoreOptions?: boolean;
+}) => {
+    try {
+        console.log(`Starting free cabin packages sync for period ${periodFrom} to ${periodTo}...`);
+        
+        const searchRequest = {
+            periodFrom,
+            periodTo,
+            ...filters
+        };
+        
+        const packages = await api.searchFreeCabinPackages(searchRequest);
+        console.log('Free cabin packages API response:', JSON.stringify(packages, null, 2));
+        
+        if (packages?.status === 'OK' && packages.freeCabinPackages) {
+            console.log(`Processing ${packages.freeCabinPackages.length} free cabin packages...`);
+            
+            for (const pkg of packages.freeCabinPackages) {
+                // Get additional package details
+                let packageDetails = null;
+                try {
+                    packageDetails = await api.getCabinPackageDetails(pkg.packageId);
+                } catch (error) {
+                    console.log(`Could not fetch details for package ${pkg.packageId}:`, error);
+                }
+                
+                // Get yacht details if available
+                let yachtDetails = null;
+                if (packageDetails?.yachtId) {
+                    try {
+                        yachtDetails = await api.getYachtDetails(packageDetails.yachtId);
+                    } catch (error) {
+                        console.log(`Could not fetch yacht details for yacht ${packageDetails.yachtId}:`, error);
+                    }
+                }
+                
+                // Get location details if available
+                let locationDetails = null;
+                if (packageDetails?.locationId) {
+                    try {
+                        locationDetails = await api.getLocationDetails(packageDetails.locationId);
+                    } catch (error) {
+                        console.log(`Could not fetch location details for location ${packageDetails.locationId}:`, error);
+                    }
+                }
+                
+                // Get charter company details if available
+                let companyDetails = null;
+                if (packageDetails?.charterCompanyId) {
+                    try {
+                        companyDetails = await api.getCharterCompanyDetails(packageDetails.charterCompanyId);
+                    } catch (error) {
+                        console.log(`Could not fetch charter company details for company ${packageDetails.charterCompanyId}:`, error);
+                    }
+                }
+                
+                const result = await FreeCabinPackage.findOneAndUpdate(
+                    { packageId: pkg.packageId },
+                    {
+                        packageId: pkg.packageId,
+                        packageName: packageDetails?.packageName || undefined,
+                        packageDescription: packageDetails?.packageDescription || undefined,
+                        yachtId: packageDetails?.yachtId || undefined,
+                        yachtName: packageDetails?.yachtName || yachtDetails?.name || undefined,
+                        yachtLength: packageDetails?.yachtLength || yachtDetails?.length || undefined,
+                        yachtLengthFeet: packageDetails?.yachtLengthFeet || yachtDetails?.lengthFeet || undefined,
+                        yachtEquipment: yachtDetails?.equipment || undefined,
+                        yachtServices: yachtDetails?.services || undefined,
+                        charterCompanyId: packageDetails?.charterCompanyId || undefined,
+                        charterCompanyName: packageDetails?.charterCompanyName || companyDetails?.name || undefined,
+                        locationId: packageDetails?.locationId || undefined,
+                        locationName: packageDetails?.locationName || locationDetails?.name || undefined,
+                        regionId: packageDetails?.regionId || undefined,
+                        regionName: packageDetails?.regionName || undefined,
+                        countryId: packageDetails?.countryId || undefined,
+                        countryName: packageDetails?.countryName || undefined,
+                        cabinPackagePeriods: pkg.cabinPackagePeriods || [],
+                        cabinPackageCabins: packageDetails?.cabinPackageCabins || undefined,
+                        cabinPackagePrices: packageDetails?.cabinPackagePrices || undefined,
+                        status: pkg.status || 'FREE',
+                        ignoreOptions: pkg.ignoreOptions || false
+                    },
+                    { upsert: true, new: true }
+                );
+                
+                console.log(`Saved free cabin package: ${pkg.packageId}`);
+            }
+        } else {
+            console.log('No free cabin packages found in API response');
+        }
+        
+        console.log('Free cabin packages sync completed');
+    } catch (error) {
+        console.error('Error syncing free cabin packages:', error);
+        throw error;
+    }
+};
+
+// Sync free cabin packages for current week
+export const syncCurrentWeekFreeCabinPackages = async () => {
+    try {
+        const today = new Date();
+        const currentWeekStart = new Date(today);
+        currentWeekStart.setDate(today.getDate() - today.getDay() + 1); // Start of current week (Monday)
+        
+        const currentWeekEnd = new Date(currentWeekStart);
+        currentWeekEnd.setDate(currentWeekStart.getDate() + 6); // End of current week (Sunday)
+        
+        const periodFrom = currentWeekStart.toISOString().split('T')[0];
+        const periodTo = currentWeekEnd.toISOString().split('T')[0];
+        
+        console.log(`Syncing free cabin packages for current week: ${periodFrom} to ${periodTo}`);
+        
+        await syncFreeCabinPackages(periodFrom, periodTo);
+        
+        console.log('Current week free cabin packages sync completed');
+    } catch (error) {
+        console.error('Error syncing current week free cabin packages:', error);
         throw error;
     }
 };

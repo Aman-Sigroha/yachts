@@ -4,7 +4,7 @@ import { Contact } from '../models/contact';
 const router = express.Router();
 
 /**
- * @openapi
+ * @swagger
  * /api/contacts:
  *   get:
  *     summary: Get contacts
@@ -88,7 +88,7 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/contacts/{id}:
  *   get:
  *     summary: Get contact by id

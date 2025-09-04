@@ -4,7 +4,7 @@ import { Reservation } from '../models/reservation';
 const router = express.Router();
 
 /**
- * @openapi
+ * @swagger
  * /api/reservations:
  *   get:
  *     summary: Get reservations
@@ -98,7 +98,7 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/reservations/{id}:
  *   get:
  *     summary: Get reservation by id
@@ -137,7 +137,7 @@ router.get('/:id', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/reservations/availability/{yachtId}:
  *   get:
  *     summary: Get yacht availability

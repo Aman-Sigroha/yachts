@@ -1,13 +1,15 @@
 import express from 'express';
 import { Yacht } from '../models/yacht';
 import { Reservation } from '../models/reservation'; // Added import for Reservation
-import { Base, Country, Region, Location, Journey } from '../models/catalogue';
+import { Base, Country, Region, Location, Journey, YachtBuilder, Equipment } from '../models/catalogue';
+import { YachtEquipment } from '../models/yacht-equipment';
+import { YachtPricing } from '../models/yacht-pricing';
 import { getFreeYachts } from '../sync';
 
 const router = express.Router();
 
 /**
- * @openapi
+ * @swagger
  * /api/yachts:
  *   get:
  *     summary: Get all yachts with filtering and search
@@ -205,6 +207,126 @@ const router = express.Router();
  *         schema:
  *           type: string
  *         description: Filter by fuel type (diesel, petrol, etc.)
+ *       - in: query
+ *         name: charterType
+ *         schema:
+ *           type: string
+ *         description: Filter by charter type (BAREBOAT, CREWED, SKIPPERED)
+ *       - in: query
+ *         name: propulsionType
+ *         schema:
+ *           type: string
+ *         description: Filter by propulsion type (SAIL, MOTOR, CATAMARAN)
+ *       - in: query
+ *         name: fourStarCharter
+ *         schema:
+ *           type: boolean
+ *         description: Filter for four-star charter yachts
+ *       - in: query
+ *         name: sailTypeId
+ *         schema:
+ *           type: integer
+ *         description: Filter by sail type ID
+ *       - in: query
+ *         name: steeringTypeId
+ *         schema:
+ *           type: integer
+ *         description: Filter by steering type ID
+ *       - in: query
+ *         name: genoaTypeId
+ *         schema:
+ *           type: integer
+ *         description: Filter by genoa type ID
+ *       - in: query
+ *         name: rudderBlades
+ *         schema:
+ *           type: integer
+ *         description: Filter by number of rudder blades
+ *       - in: query
+ *         name: mySeaCode
+ *         schema:
+ *           type: string
+ *         description: Filter by MySea code
+ *       - in: query
+ *         name: minModelLength
+ *         schema:
+ *           type: number
+ *         description: Minimum model length (LOA)
+ *       - in: query
+ *         name: maxModelLength
+ *         schema:
+ *           type: number
+ *         description: Maximum model length (LOA)
+ *       - in: query
+ *         name: minModelBeam
+ *         schema:
+ *           type: number
+ *         description: Minimum model beam
+ *       - in: query
+ *         name: maxModelBeam
+ *         schema:
+ *           type: number
+ *         description: Maximum model beam
+ *       - in: query
+ *         name: minModelDraft
+ *         schema:
+ *           type: number
+ *         description: Minimum model draft
+ *       - in: query
+ *         name: maxModelDraft
+ *         schema:
+ *           type: number
+ *         description: Maximum model draft
+ *       - in: query
+ *         name: minDisplacement
+ *         schema:
+ *           type: number
+ *         description: Minimum displacement
+ *       - in: query
+ *         name: maxDisplacement
+ *         schema:
+ *           type: number
+ *         description: Maximum displacement
+ *       - in: query
+ *         name: minVirtualLength
+ *         schema:
+ *           type: number
+ *         description: Minimum virtual length
+ *       - in: query
+ *         name: maxVirtualLength
+ *         schema:
+ *           type: number
+ *         description: Maximum virtual length
+ *       - in: query
+ *         name: minBerthsCabin
+ *         schema:
+ *           type: integer
+ *         description: Minimum berths in cabins
+ *       - in: query
+ *         name: maxBerthsCabin
+ *         schema:
+ *           type: integer
+ *         description: Maximum berths in cabins
+ *       - in: query
+ *         name: minBerthsSalon
+ *         schema:
+ *           type: integer
+ *         description: Minimum berths in salon
+ *       - in: query
+ *         name: maxBerthsSalon
+ *         schema:
+ *           type: integer
+ *         description: Maximum berths in salon
+ *       - in: query
+ *         name: minBerthsCrew
+ *         schema:
+ *           type: integer
+ *         description: Minimum crew berths
+ *       - in: query
+ *         name: maxBerthsCrew
+ *         schema:
+ *           type: integer
+ *         description: Maximum crew berths
  *     responses:
  *       200:
  *         description: List of yachts with pagination and filter summary
@@ -240,6 +362,30 @@ router.get('/', async (req, res) => {
             isPremium,
             onSale,
             fuelType,
+            charterType,
+            propulsionType,
+            fourStarCharter,
+            sailTypeId,
+            steeringTypeId,
+            genoaTypeId,
+            rudderBlades,
+            mySeaCode,
+            minModelLength,
+            maxModelLength,
+            minModelBeam,
+            maxModelBeam,
+            minModelDraft,
+            maxModelDraft,
+            minDisplacement,
+            maxDisplacement,
+            minVirtualLength,
+            maxVirtualLength,
+            minBerthsCabin,
+            maxBerthsCabin,
+            minBerthsSalon,
+            maxBerthsSalon,
+            minBerthsCrew,
+            maxBerthsCrew,
             startDate,
             endDate,
             startDestination,
@@ -352,6 +498,89 @@ router.get('/', async (req, res) => {
         // Fuel type filter
         if (fuelType && fuelType.toString().trim()) {
             query.fuelType = { $regex: fuelType.toString().trim(), $options: 'i' };
+        }
+
+        // New yacht specification filters
+        if (charterType && charterType.toString().trim()) {
+            query.charterType = charterType.toString().trim();
+        }
+
+        if (propulsionType && propulsionType.toString().trim()) {
+            query.propulsionType = propulsionType.toString().trim();
+        }
+
+        if (fourStarCharter !== undefined) {
+            query.fourStarCharter = fourStarCharter === 'true' || fourStarCharter === '1';
+        }
+
+        if (sailTypeId) {
+            query.sailTypeId = Number(sailTypeId);
+        }
+
+        if (steeringTypeId) {
+            query.steeringTypeId = Number(steeringTypeId);
+        }
+
+        if (genoaTypeId) {
+            query.genoaTypeId = Number(genoaTypeId);
+        }
+
+        if (rudderBlades) {
+            query.rudderBlades = Number(rudderBlades);
+        }
+
+        if (mySeaCode && mySeaCode.toString().trim()) {
+            query.mySeaCode = { $regex: mySeaCode.toString().trim(), $options: 'i' };
+        }
+
+        // Range filters for model specifications
+        if (minModelLength || maxModelLength) {
+            query.modelLoa = {};
+            if (minModelLength) query.modelLoa.$gte = Number(minModelLength);
+            if (maxModelLength) query.modelLoa.$lte = Number(maxModelLength);
+        }
+
+        if (minModelBeam || maxModelBeam) {
+            query.modelBeam = {};
+            if (minModelBeam) query.modelBeam.$gte = Number(minModelBeam);
+            if (maxModelBeam) query.modelBeam.$lte = Number(maxModelBeam);
+        }
+
+        if (minModelDraft || maxModelDraft) {
+            query.modelDraft = {};
+            if (minModelDraft) query.modelDraft.$gte = Number(minModelDraft);
+            if (maxModelDraft) query.modelDraft.$lte = Number(maxModelDraft);
+        }
+
+        if (minDisplacement || maxDisplacement) {
+            query.displacement = {};
+            if (minDisplacement) query.displacement.$gte = Number(minDisplacement);
+            if (maxDisplacement) query.displacement.$lte = Number(maxDisplacement);
+        }
+
+        if (minVirtualLength || maxVirtualLength) {
+            query.virtualLength = {};
+            if (minVirtualLength) query.virtualLength.$gte = Number(minVirtualLength);
+            if (maxVirtualLength) query.virtualLength.$lte = Number(maxVirtualLength);
+        }
+
+        // Range filters for additional berth specifications
+        if (minBerthsCabin || maxBerthsCabin) {
+            query.berthsCabin = {};
+            if (minBerthsCabin) query.berthsCabin.$gte = Number(minBerthsCabin);
+            if (maxBerthsCabin) query.berthsCabin.$lte = Number(maxBerthsCabin);
+        }
+
+        if (minBerthsSalon || maxBerthsSalon) {
+            query.berthsSalon = {};
+            if (minBerthsSalon) query.berthsSalon.$gte = Number(minBerthsSalon);
+            if (maxBerthsSalon) query.berthsSalon.$lte = Number(maxBerthsSalon);
+        }
+
+        if (minBerthsCrew || maxBerthsCrew) {
+            query.berthsCrew = {};
+            if (minBerthsCrew) query.berthsCrew.$gte = Number(minBerthsCrew);
+            if (maxBerthsCrew) query.berthsCrew.$lte = Number(maxBerthsCrew);
         }
 
         // Location-based filtering (country, region, location, base)
@@ -818,6 +1047,9 @@ router.get('/', async (req, res) => {
                         }
                     ]
                 })
+                .populate('builder', 'id name')
+                .populate('charterCompany', 'id name')
+                .populate('yachtModel', 'id name loa beam draft')
                 .skip(skip)
                 .limit(limitNum)
                 .sort(sortOptions),
@@ -849,6 +1081,119 @@ router.get('/', async (req, res) => {
             }
         }
 
+        // Enhance yacht data with equipment and pricing information
+        const enhancedYachts = await Promise.all(yachts.map(async (yacht: any) => {
+            const yachtObj = yacht.toObject();
+            
+            // Get yacht equipment
+            const equipment = await YachtEquipment.find({ yachtId: yacht.id }).lean();
+            
+            // Get yacht pricing
+            const pricing = await YachtPricing.find({ yachtId: yacht.id })
+                .sort({ startDate: 1 })
+                .lean();
+            
+            // Format equipment data
+            const formattedEquipment = equipment.map((eq: any) => ({
+                id: eq.equipmentId,
+                name: eq.name,
+                category: eq.category,
+                subcategory: eq.subcategory,
+                quantity: eq.quantity,
+                isStandard: eq.isStandard,
+                isOptional: eq.isOptional,
+                price: eq.price,
+                currency: eq.currency
+            }));
+            
+            // Format pricing data
+            const formattedPricing = pricing.map((price: any) => ({
+                period: price.period,
+                startDate: price.startDate,
+                endDate: price.endDate,
+                weeklyPrice: price.weeklyPrice,
+                currency: price.currency,
+                discount: price.discount,
+                discountType: price.discountType
+            }));
+            
+            // Get yacht builder data
+            const builder = yacht.builderId ? await YachtBuilder.findOne({ id: yacht.builderId }).lean() : null;
+            
+            // Format builder data
+            const formattedBuilder = builder ? {
+                id: builder.id,
+                name: builder.name
+            } : null;
+            
+            // Format base/location data with proper country formatting
+            const formattedBase = yacht.base ? {
+                id: yacht.base.id,
+                name: yacht.base.name,
+                location: yacht.base.location ? {
+                    id: yacht.base.location.id,
+                    name: yacht.base.location.name,
+                    region: yacht.base.location.region ? {
+                        id: yacht.base.location.region.id,
+                        name: yacht.base.location.region.name,
+                        country: yacht.base.location.region.country ? {
+                            id: yacht.base.location.region.country.id,
+                            name: yacht.base.location.region.country.name,
+                            code: yacht.base.location.region.country.code,
+                            code2: yacht.base.location.region.country.code2
+                        } : null
+                    } : null
+                } : null,
+                lat: yacht.base.lat,
+                lon: yacht.base.lon,
+                checkInTime: yacht.base.checkInTime,
+                checkOutTime: yacht.base.checkOutTime
+            } : null;
+            
+            return {
+                ...yachtObj,
+                builder: formattedBuilder,
+                equipment: formattedEquipment,
+                pricing: formattedPricing,
+                base: formattedBase,
+                // Enhanced fields for UI
+                guests: yacht.berths,
+                cabins: yacht.cabins,
+                yachtType: {
+                    categoryId: yacht.categoryId,
+                    charterType: yacht.charterType,
+                    propulsionType: yacht.propulsionType
+                },
+                engine: {
+                    power: yacht.enginePower,
+                    count: yacht.engineCount,
+                    fuelType: yacht.fuelType,
+                    buildYear: yacht.engineBuildYear
+                },
+                price: {
+                    deposit: yacht.deposit,
+                    depositWhenInsured: yacht.depositWhenInsured,
+                    currency: 'EUR' // Default currency
+                },
+                description: {
+                    en: yacht.description?.textEN || '',
+                    de: yacht.description?.textDE || '',
+                    fr: yacht.description?.textFR || '',
+                    it: yacht.description?.textIT || '',
+                    es: yacht.description?.textES || '',
+                    hr: yacht.description?.textHR || ''
+                },
+                highlights: {
+                    en: yacht.highlights?.textEN || '',
+                    de: yacht.highlights?.textDE || '',
+                    fr: yacht.highlights?.textFR || '',
+                    it: yacht.highlights?.textIT || '',
+                    es: yacht.highlights?.textES || '',
+                    hr: yacht.highlights?.textHR || ''
+                }
+            };
+        }));
+
         // Prepare filters summary
         const appliedFilters: any = {};
         if (category) appliedFilters.category = category;
@@ -867,6 +1212,22 @@ router.get('/', async (req, res) => {
         if (isPremium !== undefined) appliedFilters.isPremium = isPremium;
         if (onSale !== undefined) appliedFilters.onSale = onSale;
         if (fuelType) appliedFilters.fuelType = fuelType;
+        if (charterType) appliedFilters.charterType = charterType;
+        if (propulsionType) appliedFilters.propulsionType = propulsionType;
+        if (fourStarCharter !== undefined) appliedFilters.fourStarCharter = fourStarCharter;
+        if (sailTypeId) appliedFilters.sailTypeId = sailTypeId;
+        if (steeringTypeId) appliedFilters.steeringTypeId = steeringTypeId;
+        if (genoaTypeId) appliedFilters.genoaTypeId = genoaTypeId;
+        if (rudderBlades) appliedFilters.rudderBlades = rudderBlades;
+        if (mySeaCode) appliedFilters.mySeaCode = mySeaCode;
+        if (minModelLength || maxModelLength) appliedFilters.modelLength = { min: minModelLength, max: maxModelLength };
+        if (minModelBeam || maxModelBeam) appliedFilters.modelBeam = { min: minModelBeam, max: maxModelBeam };
+        if (minModelDraft || maxModelDraft) appliedFilters.modelDraft = { min: minModelDraft, max: maxModelDraft };
+        if (minDisplacement || maxDisplacement) appliedFilters.displacement = { min: minDisplacement, max: maxDisplacement };
+        if (minVirtualLength || maxVirtualLength) appliedFilters.virtualLength = { min: minVirtualLength, max: maxVirtualLength };
+        if (minBerthsCabin || maxBerthsCabin) appliedFilters.berthsCabin = { min: minBerthsCabin, max: maxBerthsCabin };
+        if (minBerthsSalon || maxBerthsSalon) appliedFilters.berthsSalon = { min: minBerthsSalon, max: maxBerthsSalon };
+        if (minBerthsCrew || maxBerthsCrew) appliedFilters.berthsCrew = { min: minBerthsCrew, max: maxBerthsCrew };
         if (startDate && endDate) appliedFilters.availability = { startDate, endDate };
         if (startDestination) appliedFilters.startDestination = startDestination;
         if (endDestination) appliedFilters.endDestination = endDestination;
@@ -877,7 +1238,7 @@ router.get('/', async (req, res) => {
 
         res.json({
             success: true,
-            data: yachts,
+            data: enhancedYachts,
             pagination: {
                 total,
                 page: pageNum,
@@ -900,7 +1261,7 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/yachts/search:
  *   get:
  *     summary: Advanced search endpoint for yachts
@@ -1012,6 +1373,9 @@ router.get('/search', async (req, res) => {
 
         const [yachts, total] = await Promise.all([
             Yacht.find(query)
+                .populate('builder', 'id name')
+                .populate('charterCompany', 'id name')
+                .populate('yachtModel', 'id name loa beam draft')
                 .skip(skip)
                 .limit(limitNum)
                 .sort(sortOptions),
@@ -1054,7 +1418,7 @@ router.get('/search', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/yachts/bulk-availability:
  *   get:
  *     summary: Get availability for multiple yachts
@@ -1238,7 +1602,10 @@ router.get('/bulk-availability', async (req, res) => {
 // Get yacht by ID
 router.get('/:id', async (req, res) => {
     try {
-        const yacht = await Yacht.findOne({ id: Number(req.params.id) });
+        const yacht = await Yacht.findOne({ id: Number(req.params.id) })
+            .populate('builder', 'id name')
+            .populate('charterCompany', 'id name')
+            .populate('yachtModel', 'id name loa beam draft');
         
         if (!yacht) {
             return res.status(404).json({
@@ -1338,7 +1705,7 @@ router.get('/debug/yacht/:id', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/yachts/{id}/availability:
  *   get:
  *     summary: Get yacht availability for a date range
@@ -1549,7 +1916,7 @@ router.get('/:id/availability', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/yachts/{id}/calendar:
  *   get:
  *     summary: Get yacht availability calendar for a month
@@ -1709,7 +2076,7 @@ router.get('/:id/calendar', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/yachts/{id}/availability-summary:
  *   get:
  *     summary: Get yacht availability summary and next available dates
@@ -1884,7 +2251,7 @@ router.get('/:id/availability-summary', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/yachts/bulk-availability:
  *   get:
  *     summary: Get availability for multiple yachts

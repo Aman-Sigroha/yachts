@@ -4,7 +4,7 @@ import { Invoice } from '../models/invoice';
 const router = express.Router();
 
 /**
- * @openapi
+ * @swagger
  * /api/invoices:
  *   get:
  *     summary: Get invoices
@@ -91,7 +91,7 @@ router.get('/', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/invoices/{id}:
  *   get:
  *     summary: Get invoice by id
@@ -130,7 +130,7 @@ router.get('/:id', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/invoices/stats/summary:
  *   get:
  *     summary: Get invoice stats

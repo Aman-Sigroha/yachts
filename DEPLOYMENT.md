@@ -19,7 +19,7 @@ Complete deployment guide for the Yacht Charter API with automated data synchron
 - **Data Sync**: Nausys API v6 integration
 - **Deployment**: AWS EC2 with systemd service
 - **Automation**: Cron jobs for daily sync
-- **Features**: Advanced filtering, search, catalogue system, yacht availability, location-based filtering with multi-language support, journey-based filtering, free yachts filtering, comprehensive yacht specification filtering (toilets, length, year, berths, beam, premium status, sale status, fuel type), and cabin charter API
+- **Features**: Advanced filtering, search, catalogue system, yacht availability, location-based filtering with multi-language support, journey-based filtering, free yachts filtering, comprehensive yacht specification filtering (toilets, length, year, berths, beam, premium status, sale status, fuel type), cabin charter API, and free cabin charter API
 
 ## 🚀 **Server Setup**
 
@@ -279,6 +279,13 @@ curl "http://localhost:3000/api/cabin-charters/bases/102755"
 curl "http://localhost:3000/api/cabin-charters/companies/102701"
 curl "http://localhost:3000/api/cabin-charters/bases?companyId=102701&limit=3"
 curl "http://localhost:3000/api/cabin-charters/companies?countryId=1&limit=3"
+
+# Test free cabin charter endpoints
+curl "http://localhost:3000/api/free-cabin-charter/packages?limit=5"
+curl "http://localhost:3000/api/free-cabin-charter/comprehensive?limit=5"
+curl "http://localhost:3000/api/free-cabin-charter/search-criteria"
+curl "http://localhost:3000/api/free-cabin-charter/current-week"
+curl "http://localhost:3000/api/free-cabin-charter/packages/46663196"
 ```
 
 ### **3. Test Swagger Documentation**
@@ -488,10 +495,10 @@ tar -czf /backup/yacht-api-$(date +%Y%m%d).tar.gz /home/ubuntu/yacht-api/
 
 ---
 
-**Last Updated**: September 2, 2025  
-**Deployment Guide Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working including date filtering, location-based filtering, and cabin charter API**
+**Last Updated**: September 4, 2025  
+**Deployment Guide Version**: 4.0.0  
+**Status**: ✅ **PRODUCTION READY - All features working including date filtering, location-based filtering, cabin charter API, and free cabin charter API**
 
 ---
 
-*This deployment guide covers the complete setup of the Yacht Charter API with automated data synchronization, advanced filtering, and yacht availability management.*
+*This deployment guide covers the complete setup of the Yacht Charter API with automated data synchronization, advanced filtering, yacht availability management, and free cabin charter functionality.*

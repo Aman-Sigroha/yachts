@@ -102,65 +102,48 @@ const getCredentials = (): Credentials => {
     const password = process.env.NAUSYS_PASSWORD;
 
     if (!username || !password) {
-        throw new Error('NAUSYS_USERNAME and NAUSYS_PASSWORD must be set in .env file');
+        throw new Error('NAUSYS_USERNAME and NAUSYS_PASSWORD environment variables are required');
     }
 
     return { username, password };
 };
 
-// Format date as DD.MM.YYYY
-const formatDate = (date: Date): string => {
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}.${month}.${year}`;
-};
+// Make authenticated request to Nausys API
+const makeRequest = async (url: string, method: string, data?: any): Promise<any> => {
+    const config: AxiosRequestConfig = {
+        method,
+        url,
+        data,
+        timeout: 30000, // 30 second timeout
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    };
 
-// Format date as DD.MM.YYYY HH:mm
-const formatDateTime = (date: Date): string => {
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${day}.${month}.${year} ${hours}:${minutes}`;
-};
-
-// Base request function
-async function makeRequest(
-    url: string,
-    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
-    data?: any,
-    headers?: Record<string, string>
-) {
     try {
-        const config: AxiosRequestConfig = {
-            method,
-            url,
-            headers: {
-                'Content-Type': 'application/json',
-                ...headers
-            },
-            data
-        };
-
         const response = await axios(config);
-        return {
-            status: response.status,
-            data: response.data
-        };
+        return response;
     } catch (error: any) {
         if (error.response) {
-            return {
-                status: error.response.status,
-                data: error.response.data
-            };
+            // Server responded with error status
+            throw new Error(`API Error ${error.response.status}: ${error.response.data?.message || error.response.statusText}`);
+        } else if (error.request) {
+            // Request was made but no response received
+            throw new Error('No response from Nausys API. Please check your internet connection.');
+        } else {
+            // Something else happened
+            throw new Error(`Request setup error: ${error.message}`);
         }
-        throw error;
     }
-}
+};
 
-// API Functions
+// Helper function to format dates for API
+const formatDate = (date: Date): string => {
+    return date.toISOString().split('T')[0];
+};
+
+// Catalogue API Functions
 export async function getAllBases() {
     const credentials = getCredentials();
     const url = `${BASE_URL}/catalogue/v6/charterBases`;
@@ -224,7 +207,6 @@ export async function getCharterCompanies() {
     return response.data;
 }
 
-// Cabin Charter API functions
 export async function getAllCharterBases() {
     const credentials = getCredentials();
     const url = `${BASE_URL}/catalogue/v6/charterBases`;
@@ -250,6 +232,54 @@ export async function getYachtsByCompany(charterCompanyId: number, yachtIds?: nu
     return response.data;
 }
 
+// Get yacht equipment details
+export async function getYachtEquipment(yachtId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/yachtEquipment/${yachtId}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Get yacht services details
+export async function getYachtServices(yachtId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/yachtServices/${yachtId}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Get yacht pricing details
+export async function getYachtPricing(yachtId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/yachtPricing/${yachtId}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Get yacht ratings/reviews
+export async function getYachtRatings(yachtId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/yachtRatings/${yachtId}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Get yacht detailed specifications
+export async function getYachtDetails(yachtId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/yachtDetails/${yachtId}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Get single yacht with full details (including equipment)
+export async function getSingleYacht(yachtId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/yacht/${yachtId}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
 export async function getAllYachtModels() {
     const credentials = getCredentials();
     const url = `${BASE_URL}/catalogue/v6/yachtModels`;
@@ -257,11 +287,12 @@ export async function getAllYachtModels() {
     return response.data;
 }
 
+// Reservation API Functions
 export async function getAllReservations() {
     const credentials = getCredentials();
     const url = `${BASE_URL}/yachtReservation/v6/reservations`;
     
-    // Get reservations for the last year
+    // Get invoices for the last year
     const now = new Date();
     const lastYear = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
     const nextYear = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
@@ -269,8 +300,7 @@ export async function getAllReservations() {
     const data = {
         credentials,
         periodFrom: formatDate(lastYear),
-        periodTo: formatDate(nextYear),
-        includeWaitingOptions: true
+        periodTo: formatDate(nextYear)
     };
 
     const response = await makeRequest(url, 'POST', data);
@@ -295,13 +325,20 @@ export async function getInvoices(type: 'base' | 'agency' | 'owner' = 'base') {
     const credentials = getCredentials();
     
     // Construct URL based on invoice type
-    let endpoint = '/sales/v6/invoices';
-    if (type === 'agency') {
-        endpoint += '/agency';
-    } else if (type === 'owner') {
-        endpoint += '/owner';
+    let url: string;
+    switch (type) {
+        case 'base':
+            url = `${BASE_URL}/invoice/v6/base`;
+            break;
+        case 'agency':
+            url = `${BASE_URL}/invoice/v6/agency`;
+            break;
+        case 'owner':
+            url = `${BASE_URL}/invoice/v6/owner`;
+            break;
+        default:
+            throw new Error(`Invalid invoice type: ${type}`);
     }
-    const url = `${BASE_URL}${endpoint}`;
     
     // Get invoices for the last year
     const now = new Date();
@@ -322,15 +359,15 @@ export async function getContact2() {
     const credentials = getCredentials();
     const url = `${BASE_URL}/client/v6/contact/all2`;
     
-    // Get contacts modified in the last year
+    // Get contacts for the last year
     const now = new Date();
     const lastYear = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
     const nextYear = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
 
     const data = {
         credentials,
-        modifyTimeFrom: formatDateTime(lastYear),
-        modifyTimeTo: formatDateTime(nextYear)
+        periodFrom: formatDate(lastYear),
+        periodTo: formatDate(nextYear)
     };
 
     const response = await makeRequest(url, 'POST', data);
@@ -351,20 +388,19 @@ export async function getAllStornos(request: StornoRequest): Promise<StornoRespo
     return response.data;
 }
 
-// Get all available yacht reservation options (journeys)
 export async function getAllOptions() {
     const credentials = getCredentials();
     const url = `${BASE_URL}/yachtReservation/v6/options`;
     
-    // Get options for the next year to cover future charters
+    // Get options for the last year
     const now = new Date();
+    const lastYear = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
     const nextYear = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
 
     const data = {
         credentials,
-        periodFrom: formatDate(now),
-        periodTo: formatDate(nextYear),
-        includeWaitingOptions: true
+        periodFrom: formatDate(lastYear),
+        periodTo: formatDate(nextYear)
     };
 
     const response = await makeRequest(url, 'POST', data);
@@ -387,5 +423,89 @@ export async function getFreeYachts(periodFrom: string, periodTo: string, yachtI
     }
 
     const response = await makeRequest(url, 'POST', data);
+    return response.data;
+}
+
+// Free Cabin Charter API Functions
+
+// Get free cabin package search criteria (filters)
+export async function getFreeCabinPackageSearchCriteria() {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/yachtReservation/v6/freeCabinPackageSearchCriteria`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Search for free cabin packages
+export async function searchFreeCabinPackages(searchRequest: {
+    periodFrom: string;
+    periodTo: string;
+    locations?: number[];
+    countries?: number[];
+    regions?: number[];
+    packages?: number[];
+    ignoreOptions?: boolean;
+}) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/yachtReservation/v6/freeCabinPackageSearch`;
+    
+    // Convert date format from YYYY-MM-DD to DD.MM.YYYY
+    const formatDateForAPI = (dateStr: string): string => {
+        const [year, month, day] = dateStr.split('-');
+        return `${day}.${month}.${year}`;
+    };
+    
+    const data = {
+        credentials,
+        periodFrom: formatDateForAPI(searchRequest.periodFrom),
+        periodTo: formatDateForAPI(searchRequest.periodTo),
+        locations: searchRequest.locations || [],
+        countries: searchRequest.countries || [],
+        regions: searchRequest.regions || [],
+        packages: searchRequest.packages || [],
+        ignoreOptions: searchRequest.ignoreOptions || false
+    };
+
+    const response = await makeRequest(url, 'POST', data);
+    return response.data;
+}
+
+// Get cabin package details
+export async function getCabinPackageDetails(packageId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/cabinPackage/${packageId}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Get cabin charter occupancy
+export async function getCabinCharterOccupancy(packageId: number, year: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/yachtReservation/v6/cabinCharterOccupancy/${packageId}/${year}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Get location details
+export async function getLocationDetails(locationId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/location/${locationId}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Get charter company details
+export async function getCharterCompanyDetails(companyId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/charterCompany/${companyId}`;
+    const response = await makeRequest(url, 'POST', credentials);
+    return response.data;
+}
+
+// Get cabin type details
+export async function getCabinTypeDetails(cabinId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/catalogue/v6/cabinType/${cabinId}`;
+    const response = await makeRequest(url, 'POST', credentials);
     return response.data;
 }

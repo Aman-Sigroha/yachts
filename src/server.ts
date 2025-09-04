@@ -12,6 +12,11 @@ import reservationRoutes from './routes/reservation.routes';
 import contactRoutes from './routes/contact.routes';
 import catalogueRoutes from './routes/catalogue.routes';
 import cabinCharterRoutes from './routes/cabin-charter.routes';
+import yachtEquipmentRoutes from './routes/yacht-equipment.routes';
+import yachtServicesRoutes from './routes/yacht-services.routes';
+import yachtPricingRoutes from './routes/yacht-pricing.routes';
+import yachtRatingsRoutes from './routes/yacht-ratings.routes';
+import freeCabinCharterRoutes from './routes/free-cabin-charter.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,9 +26,9 @@ const swaggerSpec = swaggerJsdoc({
     definition: {
         openapi: '3.0.0',
         info: {
-            title: 'Yacht Charter API v3.0',
-            version: '3.0.0',
-            description: 'Comprehensive API for yacht charter management with advanced filtering, journey-based search, and free yacht availability',
+            title: 'Yacht Charter API v4.0',
+            version: '4.0.0',
+            description: 'Comprehensive API for yacht charter management with advanced filtering, journey-based search, free yacht availability, detailed equipment & services, pricing, ratings, and cabin charter support',
             contact: {
                 name: 'API Support'
             }
@@ -83,6 +88,11 @@ app.use('/api/reservations', reservationRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/catalogue', catalogueRoutes);
 app.use('/api/cabin-charters', cabinCharterRoutes);
+app.use('/api/yacht-equipment', yachtEquipmentRoutes);
+app.use('/api/yacht-services', yachtServicesRoutes);
+app.use('/api/yacht-pricing', yachtPricingRoutes);
+app.use('/api/yacht-ratings', yachtRatingsRoutes);
+app.use('/api/free-cabin-charter', freeCabinCharterRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

@@ -161,7 +161,7 @@ export interface ILocation extends Document {
 }
 
 const LocationSchema = new Schema<ILocation>({
-    id: { type: Number, required: true, unique: true, index: true },
+    id: { type: Number, required: true, unique: true },
     name: {
         textEN: String,
         textDE: String,
@@ -182,7 +182,7 @@ const LocationSchema = new Schema<ILocation>({
         textSK: String,
         textTR: String
     },
-    regionId: { type: Number, required: true, index: true }
+    regionId: { type: Number, required: true }
 }, {
     toJSON: { virtuals: true },
     toObject: { virtuals: true }
@@ -205,12 +205,12 @@ LocationSchema.virtual('country', {
 
 // Journey Schema for available charter routes
 const JourneySchema = new Schema<IJourney>({
-    id: { type: Number, required: true, unique: true, index: true },
-    yachtId: { type: Number, required: true, index: true },
-    baseFromId: { type: Number, required: true, index: true },
-    baseToId: { type: Number, required: true, index: true },
-    locationFromId: { type: Number, required: true, index: true },
-    locationToId: { type: Number, required: true, index: true },
+    id: { type: Number, required: true, unique: true },
+    yachtId: { type: Number, required: true },
+    baseFromId: { type: Number, required: true },
+    baseToId: { type: Number, required: true },
+    locationFromId: { type: Number, required: true },
+    locationToId: { type: Number, required: true },
     periodFrom: { type: Date, required: true },
     periodTo: { type: Date, required: true },
     optionTill: { type: Date, required: true },

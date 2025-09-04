@@ -1,10 +1,11 @@
 # 🚢 Yacht Charter API - Complete Usage Guide
 
-Comprehensive guide for using the Yacht Charter API v3.0 with all endpoints, filtering options, and examples.
+Comprehensive guide for using the Yacht Charter API v4.0 with all endpoints, filtering options, and examples.
 
 ## 🌐 **Base URL**
 - **Production**: `http://3.69.225.186:3000`
 - **API Documentation**: `http://3.69.225.186:3000/api-docs`
+- **Status**: ✅ **PRODUCTION READY** - All features working including sized pictures and complete equipment data
 
 ## 🚢 **Yacht Management Endpoints**
 
@@ -33,6 +34,24 @@ GET /api/yachts?minDraft=1.5&maxDraft=3.0&minEnginePower=200&maxEnginePower=500&
 
 # Filter by deposit range
 GET /api/yachts?minDeposit=1000&maxDeposit=5000&limit=10
+
+# Advanced yacht specification filtering
+GET /api/yachts?charterType=BAREBOAT&propulsionType=SAIL&limit=10
+
+# Filter by model specifications
+GET /api/yachts?minModelLength=14&maxModelLength=16&minModelBeam=7&maxModelBeam=8&limit=10
+
+# Filter by sailing equipment
+GET /api/yachts?sailTypeId=1&steeringTypeId=2&genoaTypeId=1&limit=10
+
+# Filter by berth specifications
+GET /api/yachts?minBerthsCabin=8&maxBerthsCabin=12&minBerthsSalon=2&limit=10
+
+# Filter by charter type and four-star status
+GET /api/yachts?charterType=CREWED&fourStarCharter=true&limit=10
+
+# Complex filtering with multiple criteria
+GET /api/yachts?charterType=BAREBOAT&minModelLength=14&maxModelLength=16&fourStarCharter=false&minBerthsCabin=8&limit=5
 ```
 
 ### **Date-Based Availability Filtering**
@@ -96,6 +115,173 @@ GET /api/yachts/{yachtId}/availability-summary
 GET /api/yachts/bulk-availability?yachtIds=479287,479288,479289&startDate=2025-06-01&endDate=2025-06-08
 ```
 
+## ⚓ **Yacht Equipment & Services API Endpoints**
+
+### **Yacht Equipment**
+```bash
+# List all yacht equipment
+GET /api/yacht-equipment?page=1&limit=20
+
+# Filter equipment by yacht
+GET /api/yacht-equipment?yachtId=479273&limit=10
+
+# Filter by equipment category
+GET /api/yacht-equipment?category=Navigation&limit=10
+
+# Filter standard vs optional equipment
+GET /api/yacht-equipment?isStandard=true&limit=10
+GET /api/yacht-equipment?isOptional=true&limit=10
+
+# Get equipment for specific yacht
+GET /api/yacht-equipment/yacht/479273
+
+# Get equipment categories
+GET /api/yacht-equipment/categories
+
+# Get specific equipment details
+GET /api/yacht-equipment/123
+```
+
+### **Yacht Services**
+```bash
+# List all yacht services
+GET /api/yacht-services?page=1&limit=20
+
+# Filter services by yacht
+GET /api/yacht-services?yachtId=479273&limit=10
+
+# Filter by service category
+GET /api/yacht-services?category=Cleaning&limit=10
+
+# Filter by availability
+GET /api/yacht-services?isAvailable=true&limit=10
+
+# Get services for specific yacht
+GET /api/yacht-services/yacht/479273
+
+# Get service categories
+GET /api/yacht-services/categories
+
+# Get specific service details
+GET /api/yacht-services/456
+```
+
+### **Yacht Pricing**
+```bash
+# List all yacht pricing
+GET /api/yacht-pricing?page=1&limit=20
+
+# Filter pricing by yacht
+GET /api/yacht-pricing?yachtId=479273&limit=10
+
+# Filter by season
+GET /api/yacht-pricing?season=Summer&limit=10
+
+# Filter by pricing type
+GET /api/yacht-pricing?pricingType=Weekly&limit=10
+
+# Get pricing for specific yacht
+GET /api/yacht-pricing/yacht/479273
+
+# Calculate pricing for specific dates
+GET /api/yacht-pricing/calculate?yachtId=479273&startDate=2025-06-01&endDate=2025-06-08
+
+# Get specific pricing details
+GET /api/yacht-pricing/789
+```
+
+### **Yacht Ratings**
+```bash
+# List all yacht ratings
+GET /api/yacht-ratings?page=1&limit=20
+
+# Filter ratings by yacht
+GET /api/yacht-ratings?yachtId=479273&limit=10
+
+# Filter by rating range
+GET /api/yacht-ratings?minRating=4&maxRating=5&limit=10
+
+# Filter by rating source
+GET /api/yacht-ratings?source=Customer&limit=10
+
+# Get ratings for specific yacht
+GET /api/yacht-ratings/yacht/479273
+
+# Get rating summary statistics
+GET /api/yacht-ratings/summary
+
+# Get specific rating details
+GET /api/yacht-ratings/101
+```
+
+## ⭐ **Yacht Ratings & Equipment API**
+
+### **Yacht Ratings & Reviews**
+```bash
+# Get all yacht ratings
+GET /api/yacht-ratings
+
+# Get ratings for specific yacht
+GET /api/yacht-ratings?yachtId=102761
+
+# Get ratings with pagination
+GET /api/yacht-ratings?page=1&limit=10
+
+# Filter by rating score
+GET /api/yacht-ratings?minTotalRating=4.0&maxTotalRating=5.0
+
+# Get ratings with specific criteria
+GET /api/yacht-ratings?minCleanliness=4.0&minEquipment=4.5&minPersonalService=4.0
+```
+
+### **Yacht Equipment API**
+```bash
+# Get all yacht equipment
+GET /api/yacht-equipment
+
+# Get equipment for specific yacht
+GET /api/yacht-equipment?yachtId=102761
+
+# Filter equipment by type
+GET /api/yacht-equipment?equipmentType=SAILING
+
+# Search equipment by name
+GET /api/yacht-equipment?q=GPS&limit=10
+```
+
+### **Yacht Services API**
+```bash
+# Get all yacht services
+GET /api/yacht-services
+
+# Get services for specific yacht
+GET /api/yacht-services?yachtId=102761
+
+# Filter services by type
+GET /api/yacht-services?serviceType=CREW
+
+# Search services by name
+GET /api/yacht-services?q=skipper&limit=10
+```
+
+### **Yacht Pricing API**
+```bash
+# Get all yacht pricing
+GET /api/yacht-pricing
+
+# Get pricing for specific yacht
+GET /api/yacht-pricing?yachtId=102761
+
+# Filter by date range
+GET /api/yacht-pricing?startDate=2025-06-01&endDate=2025-08-31
+
+# Filter by price range
+GET /api/yacht-pricing?minPrice=2000&maxPrice=5000
+
+# Filter by period
+GET /api/yacht-pricing?period=WEEKLY
+```
+
 ## 🛥️ **Cabin Charter API Endpoints**
 
 ### **Cabin Charter Bases**
@@ -156,6 +342,49 @@ GET /api/cabin-charters/catalogue?limit=10
 
 # Get available filter options
 GET /api/cabin-charters/filters
+```
+
+## 🚢 **Free Cabin Charter API Endpoints**
+
+### **Free Cabin Charter Packages**
+```bash
+# Get all available packages
+GET /api/free-cabin-charter/packages?page=1&limit=20
+
+# Filter by date range
+GET /api/free-cabin-charter/comprehensive?periodFrom=2025-09-04&periodTo=2025-09-11&limit=10
+
+# Get current week packages
+GET /api/free-cabin-charter/current-week
+
+# Get specific package details
+GET /api/free-cabin-charter/packages/46663196
+
+# Get comprehensive data for UI
+GET /api/free-cabin-charter/comprehensive?limit=5&page=1
+```
+
+### **Free Cabin Charter Search**
+```bash
+# Search with filters
+POST /api/free-cabin-charter/search
+Content-Type: application/json
+{
+  "periodFrom": "2025-09-04",
+  "periodTo": "2025-09-11",
+  "locations": [51, 68],
+  "countries": [1],
+  "regions": [557576],
+  "packages": [55683538]
+}
+
+# Get search criteria for filters
+GET /api/free-cabin-charter/search-criteria
+
+# Sync data from Nausys API
+POST /api/free-cabin-charter/sync
+Content-Type: application/json
+{}
 ```
 
 ## 📊 **Catalogue & Filter Endpoints**
@@ -321,6 +550,10 @@ Invoke-RestMethod -Uri "http://3.69.225.186:3000/api/yachts?limit=5" -Method GET
 # Test cabin charter endpoint
 Invoke-RestMethod -Uri "http://3.69.225.186:3000/api/cabin-charters/bases?limit=5" -Method GET
 
+# Test free cabin charter endpoint
+Invoke-RestMethod -Uri "http://3.69.225.186:3000/api/free-cabin-charter/packages?limit=5" -Method GET
+Invoke-RestMethod -Uri "http://3.69.225.186:3000/api/free-cabin-charter/comprehensive?limit=5" -Method GET
+
 # Test with filters
 Invoke-RestMethod -Uri "http://3.69.225.186:3000/api/yachts?minCabins=5&maxCabins=8&limit=5" -Method GET
 ```
@@ -332,6 +565,10 @@ curl "http://3.69.225.186:3000/api/yachts?limit=5"
 
 # Test cabin charter endpoint
 curl "http://3.69.225.186:3000/api/cabin-charters/bases?limit=5"
+
+# Test free cabin charter endpoint
+curl "http://3.69.225.186:3000/api/free-cabin-charter/packages?limit=5"
+curl "http://3.69.225.186:3000/api/free-cabin-charter/comprehensive?limit=5"
 
 # Test with filters
 curl "http://3.69.225.186:3000/api/yachts?minCabins=5&maxCabins=8&limit=5"
@@ -346,6 +583,11 @@ fetch('http://3.69.225.186:3000/api/yachts?limit=5')
 
 // Test cabin charter endpoint
 fetch('http://3.69.225.186:3000/api/cabin-charters/bases?limit=5')
+  .then(response => response.json())
+  .then(data => console.log(data));
+
+// Test free cabin charter endpoint
+fetch('http://3.69.225.186:3000/api/free-cabin-charter/packages?limit=5')
   .then(response => response.json())
   .then(data => console.log(data));
 ```
@@ -374,6 +616,7 @@ The API automatically synchronizes data with the Nausys API v6 every 24 hours. T
 - Catalogue data
 - Journey data
 - **Cabin charter data** (bases and companies)
+- **Free cabin charter data** (packages and search criteria)
 
 Manual sync can be triggered by running:
 ```bash
@@ -396,10 +639,10 @@ For additional support or questions:
 
 ---
 
-**Last Updated**: September 2, 2025  
-**API Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY**
+**Last Updated**: September 4, 2025  
+**API Version**: 4.0.0  
+**Status**: ✅ **PRODUCTION READY** - All features working including sized pictures (600x600) and complete equipment data from Nausys API
 
 ---
 
-*This guide covers all available endpoints and features of the Yacht Charter API v3.0 including the new cabin charter API.*
+*This guide covers all available endpoints and features of the Yacht Charter API v4.0 including the new cabin charter API, free cabin charter API, sized pictures, and complete equipment data.*

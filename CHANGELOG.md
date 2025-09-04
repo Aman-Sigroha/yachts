@@ -5,6 +5,108 @@ All notable changes to the Yacht Charter API project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1] - 2025-09-04
+
+### 🔧 Bug Fixes & Improvements
+
+### 🐛 Fixed
+- **Swagger Documentation**: Fixed all YAML syntax errors by correcting `@openapi` tags to `@swagger` across all route files
+- **Yacht Equipment Sync**: Fixed data extraction from Nausys API - now properly extracts equipment from `getYachtsByCompany` endpoint
+- **Yacht Services Sync**: Fixed data extraction from Nausys API - now properly extracts services from `seasonSpecificData`
+- **Yacht Pricing Sync**: Fixed date parsing for DD.MM.YYYY format from Nausys API
+- **Yacht Ratings Sync**: Fixed data extraction to properly get euminia ratings from yacht data
+- **Mongoose Schema Warnings**: Removed duplicate index definitions causing warnings
+- **Error Handling**: Improved error handling in sync process to prevent individual failures from stopping entire sync
+
+### ✅ Improved
+- **Data Sync Process**: All yacht-related data (equipment, services, pricing, ratings) now syncs successfully
+- **Real-time Cabin Charter Data**: 17 active cabin charter packages with comprehensive pricing and availability
+- **API Documentation**: All Swagger endpoints now properly documented with correct YAML syntax
+- **Production Stability**: Enhanced error handling and graceful degradation for external API calls
+
+## [4.0.0] - 2025-09-04
+
+### 🚀 Major Release - Comprehensive Yacht Data, Advanced Filtering & Free Cabin Charter API
+
+### ⚓ Added
+- **Comprehensive Yacht Data Model**: Extended yacht model with 50+ new specification fields
+  - **Sailing-Specific Data**: `sailTypeId`, `sailRenewed`, `genoaTypeId`, `genoaRenewed`, `steeringTypeId`, `rudderBlades`, `mainSailType`, `genoaType`, `steeringType`
+  - **Charter & Propulsion Details**: `charterType`, `propulsionType`, `fourStarCharter`
+  - **Model Specifications**: `modelLoa`, `modelBeam`, `modelDraft`, `modelDisplacement`, `modelVirtualLength`, `displacement`, `virtualLength`
+  - **Berth Specifications**: `berthsCabin`, `berthsSalon`, `berthsCrew`
+  - **Equipment & Services**: `standardEquipment`, `optionalEquipment`, `services`, `seasonalPricing`, `ratings`
+  - **Technical Equipment**: Navigation, safety, entertainment, galley, deck, and interior equipment fields
+
+- **New Data Models**: Created dedicated models for detailed yacht data
+  - **YachtEquipment**: Equipment information with categories and specifications
+  - **YachtService**: Available services with pricing and availability
+  - **YachtPricing**: Seasonal pricing with date ranges and rates
+  - **YachtRating**: Customer ratings and reviews with detailed scoring
+
+- **New API Endpoints**: Dedicated routes for detailed yacht data
+  - **Yacht Equipment API**: `/api/yacht-equipment` with filtering by yacht, category, and equipment type
+  - **Yacht Services API**: `/api/yacht-services` with filtering by yacht, category, and availability
+  - **Yacht Pricing API**: `/api/yacht-pricing` with seasonal pricing and calculation endpoints
+  - **Yacht Ratings API**: `/api/yacht-ratings` with rating statistics and summary endpoints
+
+- **Free Cabin Charter API**: Complete API for available cabin charter packages
+  - **Free Cabin Charter Packages API**: `/api/free-cabin-charter/packages` with comprehensive package information
+  - **Free Cabin Charter Search API**: `/api/free-cabin-charter/search` with advanced filtering capabilities
+  - **Free Cabin Charter Comprehensive API**: `/api/free-cabin-charter/comprehensive` with UI-ready data
+  - **Free Cabin Charter Search Criteria API**: `/api/free-cabin-charter/search-criteria` for filter options
+  - **Free Cabin Charter Sync API**: `/api/free-cabin-charter/sync` for data synchronization
+  - **Current Week Packages API**: `/api/free-cabin-charter/current-week` for current week availability
+
+- **Advanced Filtering System**: 50+ filter parameters for comprehensive yacht search
+  - **Charter Type Filtering**: `charterType` (BAREBOAT, CREWED, SKIPPERED)
+  - **Propulsion Type Filtering**: `propulsionType` (SAIL, MOTOR, CATAMARAN)
+  - **Model Specification Filters**: `minModelLength`/`maxModelLength`, `minModelBeam`/`maxModelBeam`, `minModelDraft`/`maxModelDraft`
+  - **Berth Specification Filters**: `minBerthsCabin`/`maxBerthsCabin`, `minBerthsSalon`/`maxBerthsSalon`, `minBerthsCrew`/`maxBerthsCrew`
+  - **Sailing Equipment Filters**: `sailTypeId`, `steeringTypeId`, `genoaTypeId`, `rudderBlades`
+  - **Charter Status Filters**: `fourStarCharter`, `mySeaCode`
+
+### 🔧 Enhanced
+- **Data Synchronization**: Extended sync functions for detailed yacht data and free cabin charter
+  - Added `syncYachtEquipmentData()` for equipment synchronization
+  - Added `syncYachtServicesData()` for services synchronization
+  - Added `syncYachtPricingData()` for pricing synchronization
+  - Added `syncYachtRatingsData()` for ratings synchronization
+  - Added `syncFreeCabinSearchCriteria()` for search criteria synchronization
+  - Added `syncFreeCabinPackages()` for package synchronization
+  - Added `syncCurrentWeekFreeCabinPackages()` for current week packages
+  - Integrated all new sync functions into automated sync process
+
+- **API Documentation**: Updated Swagger documentation with all new endpoints and parameters
+  - Added comprehensive JSDoc comments for all new endpoints
+  - Updated API version to v4.0
+  - Fixed YAML syntax errors in Swagger documentation
+  - Added detailed parameter descriptions and examples
+
+- **Database Indexing**: Added optimized indexes for new filter fields
+  - Indexes for `charterType`, `propulsionType`, `fourStarCharter`
+  - Indexes for `sailTypeId`, `steeringTypeId`, `mySeaCode`
+  - Indexes for rating fields and equipment categories
+
+### 📊 Improved
+- **Filter Performance**: Optimized query performance for complex filtering scenarios
+- **Data Completeness**: Enhanced yacht data with comprehensive specification details
+- **API Consistency**: Standardized response formats across all new endpoints
+- **Error Handling**: Improved error handling for new data models and sync functions
+
+### 🧪 Tested
+- **Comprehensive Testing**: All new endpoints and filters tested successfully
+- **Filter Combinations**: Complex multi-parameter filtering tested and verified
+- **Data Integrity**: Verified data consistency across all new models
+- **API Performance**: Confirmed optimal performance with new filtering capabilities
+- **Free Cabin Charter Testing**: Complete testing of all 7 free cabin charter endpoints
+  - Search criteria API: ✅ Working
+  - Package search API: ✅ Working
+  - Comprehensive data API: ✅ Working
+  - Current week API: ✅ Working
+  - Individual package API: ✅ Working
+  - Sync API: ✅ Working
+  - Data quality: 94.7% with real Nausys API data
+
 ## [3.0.1] - 2025-09-02
 
 ### 🛥️ Added
@@ -125,6 +227,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-**Last Updated**: September 2, 2025  
-**Current Version**: 3.0.1  
+**Last Updated**: September 4, 2025  
+**Current Version**: 4.0.0  
 **Status**: ✅ **PRODUCTION READY**

@@ -1,22 +1,31 @@
-﻿# 🚢 Yacht Charter API v3.0
+﻿
+# 🚢 Yacht Charter API v4.0
 
-A comprehensive Node.js/TypeScript API for yacht charter management with advanced filtering, search capabilities, automated data synchronization, and yacht availability management.
+A comprehensive Node.js/TypeScript API for yacht charter management with advanced filtering, search capabilities, automated data synchronization, yacht availability management, and detailed yacht specifications.
 
 ## ✨ **Current Status: PRODUCTION READY** ✅
 
 - **🌐 Production Server**: `http://3.69.225.186:3000`
 - **📚 API Documentation**: `http://3.69.225.186:3000/api-docs`
-- **🚀 All Features Working**: Search, filtering, catalogue, automated sync, availability, cabin charter API
-- **🔧 Swagger Fixed**: No more YAML syntax errors
+- **🚀 All Features Working**: Search, filtering, catalogue, automated sync, availability, cabin charter API, comprehensive yacht specifications
+- **🔧 Swagger Fixed**: No more YAML syntax errors - all @openapi tags corrected to @swagger
 - **🧹 Production Cleaned**: Optimized production environment
 - **🛥️ Cabin Charter API**: New endpoints for cabin charter bases and companies
 - **🔧 Journey Sync Fixed**: Resolved sync errors for complete data synchronization
+- **⚓ Comprehensive Yacht Data**: 50+ new yacht specification fields including sailing equipment, model specs, berth details, and more
+- **🔍 Advanced Filtering**: 50+ filter parameters including charter type, propulsion type, model specifications, and equipment filters
+- **⭐ Yacht Ratings API**: Complete euminia ratings system with cleanliness, equipment, service, and price performance scores
+- **🔧 Equipment & Services Sync**: Fixed data extraction from Nausys API - now properly syncs yacht equipment, services, and pricing
+- **📊 Real-time Cabin Charter Data**: 17 active cabin charter packages with comprehensive pricing and availability
+- **🖼️ Sized Pictures**: All yacht pictures now include `?w=600&h=600` parameters for consistent sizing
+- **⚓ Complete Equipment Data**: Standard equipment now properly populated from Nausys API
+- **🔧 TypeScript Fixed**: All compilation errors resolved with proper type definitions
 
 ## 🎯 **Key Features**
 
-- 🚢 **Comprehensive Yacht Management**: Full CRUD operations for yacht data
-- 📊 **Advanced Filtering & Search**: Multi-parameter filtering, text search, pagination, and date-based availability filtering
-- 🔄 **Automated Data Synchronization**: Daily sync with Nausys API v6 (including cabin charter data)
+- 🚢 **Comprehensive Yacht Management**: Full CRUD operations for yacht data with 50+ specification fields
+- 📊 **Advanced Filtering & Search**: 50+ filter parameters including charter type, propulsion type, model specifications, and equipment filters
+- 🔄 **Automated Data Synchronization**: Daily sync with Nausys API v6 (including cabin charter data and detailed yacht specifications)
 - 🌍 **Multi-language Support**: Handle text in 20+ languages including EN, DE, FR, IT, ES, HR, CZ, HU, LT, LV, NL, NO, PL, RU, SE, SI, SK, TR
 - 🎛️ **Smart Catalogue System**: Active filters with yacht counts
 - 🛡️ **Smart Conflict Resolution**: Prevents duplicate key errors during sync
@@ -28,6 +37,9 @@ A comprehensive Node.js/TypeScript API for yacht charter management with advance
 - 🚀 **Journey-Based Filtering**: Filter yachts by actual charter routes (start/end destinations)
 - ✅ **Free Yachts Filtering**: Get only available yachts for specific date ranges with external API integration
 - 🛥️ **Cabin Charter API**: Complete API for cabin charter bases and companies with filtering and pagination
+- 🚢 **Free Cabin Charter API**: Real-time cabin charter package availability with comprehensive pricing, location, and yacht information
+- ⚓ **Detailed Yacht Specifications**: Comprehensive yacht data including sailing equipment, model specifications, berth details, and technical specifications
+- 🔧 **Equipment & Services API**: Dedicated endpoints for yacht equipment, services, pricing, and ratings
 
 ## 🚀 **Quick Start**
 
@@ -91,6 +103,33 @@ npm start
 - `GET /api/cabin-charters/catalogue` - Combined bases and companies data
 - `GET /api/cabin-charters/filters` - Available filter options for cabin charter data
 
+### **Free Cabin Charter API**
+- `GET /api/free-cabin-charter/search-criteria` - Get available search criteria (countries, regions, locations, packages)
+- `POST /api/free-cabin-charter/search` - Search free cabin charter packages with filters
+- `GET /api/free-cabin-charter/current-week` - Get current week free cabin charter packages
+- `GET /api/free-cabin-charter/packages` - List all free cabin charter packages with pagination
+- `GET /api/free-cabin-charter/packages/:id` - Get specific free cabin charter package details
+- `GET /api/free-cabin-charter/comprehensive` - Get comprehensive free cabin charter data for UI
+- `POST /api/free-cabin-charter/sync` - Sync free cabin charter data from Nausys API
+
+### **Yacht Equipment & Services API**
+- `GET /api/yacht-equipment` - List yacht equipment with filtering and pagination
+- `GET /api/yacht-equipment/:id` - Get specific equipment details
+- `GET /api/yacht-equipment/yacht/:yachtId` - Get equipment for specific yacht
+- `GET /api/yacht-equipment/categories` - Get available equipment categories
+- `GET /api/yacht-services` - List yacht services with filtering and pagination
+- `GET /api/yacht-services/:id` - Get specific service details
+- `GET /api/yacht-services/yacht/:yachtId` - Get services for specific yacht
+- `GET /api/yacht-services/categories` - Get available service categories
+- `GET /api/yacht-pricing` - List yacht pricing with filtering and pagination
+- `GET /api/yacht-pricing/:id` - Get specific pricing details
+- `GET /api/yacht-pricing/yacht/:yachtId` - Get pricing for specific yacht
+- `GET /api/yacht-pricing/calculate` - Calculate pricing for specific dates
+- `GET /api/yacht-ratings` - List yacht ratings with filtering and pagination
+- `GET /api/yacht-ratings/:id` - Get specific rating details
+- `GET /api/yacht-ratings/yacht/:yachtId` - Get ratings for specific yacht
+- `GET /api/yacht-ratings/summary` - Get rating summary statistics
+
 ### **Other Endpoints**
 - `GET /api/invoices` - Invoice management
 - `GET /api/reservations` - Reservation data
@@ -99,6 +138,8 @@ npm start
 ## 🔍 **Advanced Search & Filtering**
 
 ### **Query Parameters**
+
+#### **Basic Filters**
 - `q` - Text search in yacht names and highlights
 - `category`, `builder`, `base`, `charterCompany` - ID-based filters
 - `minCabins`/`maxCabins` - Cabin range filtering
@@ -113,10 +154,36 @@ npm start
 - `isPremium` - Filter for premium yachts only (boolean)
 - `onSale` - Filter for yachts on sale only (boolean)
 - `fuelType` - Filter by fuel type (string)
+
+#### **Advanced Yacht Specification Filters**
+- `charterType` - Filter by charter type (BAREBOAT, CREWED, SKIPPERED)
+- `propulsionType` - Filter by propulsion type (SAIL, MOTOR, CATAMARAN)
+- `fourStarCharter` - Filter for four-star charter yachts (boolean)
+- `sailTypeId` - Filter by sail type ID (integer)
+- `steeringTypeId` - Filter by steering type ID (integer)
+- `genoaTypeId` - Filter by genoa type ID (integer)
+- `rudderBlades` - Filter by number of rudder blades (integer)
+- `mySeaCode` - Filter by MySea code (string)
+
+#### **Model Specification Filters**
+- `minModelLength`/`maxModelLength` - Model length range filtering
+- `minModelBeam`/`maxModelBeam` - Model beam range filtering
+- `minModelDraft`/`maxModelDraft` - Model draft range filtering
+- `minDisplacement`/`maxDisplacement` - Displacement range filtering
+- `minVirtualLength`/`maxVirtualLength` - Virtual length range filtering
+
+#### **Berth Specification Filters**
+- `minBerthsCabin`/`maxBerthsCabin` - Cabin berths range filtering
+- `minBerthsSalon`/`maxBerthsSalon` - Salon berths range filtering
+- `minBerthsCrew`/`maxBerthsCrew` - Crew berths range filtering
+
+#### **Location & Journey Filters**
 - `startDate`/`endDate` - Date range filtering for yacht availability (YYYY-MM-DD format)
 - `country`, `region`, `location` - Location-based filtering with multi-language support
 - `startDestination`/`endDestination` - Journey-based filtering by charter route destinations
 - `free` - Filter for available yachts only (requires startDate and endDate)
+
+#### **Pagination & Sorting**
 - `page`, `limit` - Pagination
 - `sortBy`, `sortOrder` - Sorting options
 
@@ -138,6 +205,18 @@ GET /api/yachts?isPremium=true&onSale=true&minCabins=4&limit=10
 
 # Example: Filter by fuel type and berths
 GET /api/yachts?fuelType=diesel&minBerths=8&maxBerths=12&limit=10
+
+# Example: Advanced yacht specification filtering
+GET /api/yachts?charterType=BAREBOAT&propulsionType=SAIL&minModelLength=14&maxModelLength=16&limit=10
+
+# Example: Filter by sailing equipment and berth specifications
+GET /api/yachts?sailTypeId=1&steeringTypeId=2&minBerthsCabin=8&maxBerthsCabin=12&limit=10
+
+# Example: Filter by model specifications and charter type
+GET /api/yachts?charterType=CREWED&minModelBeam=8&maxModelBeam=9&minDisplacement=10000&limit=10
+
+# Example: Complex filtering with multiple criteria
+GET /api/yachts?charterType=BAREBOAT&minModelLength=14&maxModelLength=16&fourStarCharter=false&minBerthsCabin=8&limit=5
 ```
 
 This feature automatically excludes yachts with conflicting reservations in the specified date range.
@@ -249,6 +328,73 @@ GET /api/cabin-charters/companies?countryId=1&city=Zagreb&pac=false&limit=5
 - **Multi-language Support**: Base and company information in multiple languages
 - **Geographic Data**: Complete location information with coordinates for mapping
 
+## 🛥️ **Free Cabin Charter API**
+
+The free cabin charter API provides comprehensive access to available cabin charter packages with real-time availability, pricing, and detailed package information.
+
+### **Free Cabin Charter Package Filtering**
+```bash
+# Get all available packages
+GET /api/free-cabin-charter/packages?limit=10
+
+# Filter by date range
+GET /api/free-cabin-charter/comprehensive?periodFrom=2025-09-04&periodTo=2025-09-11&limit=5
+
+# Get current week packages
+GET /api/free-cabin-charter/current-week
+
+# Search with filters
+POST /api/free-cabin-charter/search
+Content-Type: application/json
+{
+  "periodFrom": "2025-09-04",
+  "periodTo": "2025-09-11",
+  "locations": [51, 68],
+  "countries": [1],
+  "regions": [557576],
+  "packages": [55683538]
+}
+
+# Get comprehensive data for UI
+GET /api/free-cabin-charter/comprehensive?limit=5&page=1
+
+# Get specific package details
+GET /api/free-cabin-charter/packages/46663196
+
+# Get search criteria for filters
+GET /api/free-cabin-charter/search-criteria
+
+# Sync data from Nausys API
+POST /api/free-cabin-charter/sync
+Content-Type: application/json
+{}
+```
+
+### **Free Cabin Charter Data Structure**
+- **Package Information**: Package ID, name, description, yacht details, charter company, location
+- **Period Information**: Start/end dates, duration, multiple periods per package
+- **Cabin Details**: Cabin ID, name, type, occupancy, availability, pricing
+- **Pricing Information**: 1/2/3-person pricing, currency, discounts, client pricing
+- **Location Data**: Country, region, location names with multi-language support
+- **Real-time Availability**: Live data from Nausys API with automatic sync
+
+### **Comprehensive API Response**
+The `/comprehensive` endpoint provides UI-ready data with:
+- **Package Details**: Names, descriptions, yacht specifications
+- **Location Information**: Countries, regions, locations
+- **Period Data**: Dates, duration, availability
+- **Cabin Information**: Types, occupancy, availability, pricing
+- **Pricing**: 1/2/3-person pricing with discounts
+- **Pagination**: Efficient data loading with page/limit support
+
+### **Search Criteria API**
+The search criteria endpoint provides available filter options:
+- **Countries**: Array of country IDs for filtering
+- **Regions**: Array of region IDs for filtering  
+- **Locations**: Array of location IDs for filtering
+- **Packages**: Array of package IDs for filtering
+- **Real-time Updates**: Automatically synced from Nausys API
+
 ## 🎯 **Key Features Explained**
 
 ### **Smart Catalogue System**
@@ -322,6 +468,59 @@ npm run test         # Run tests
 ### **Cabin Charter Entities**
 - **CabinCharterBase**: Charter base locations with coordinates, check-in/out times, and company associations
 - **CabinCharterCompany**: Charter companies with contact details, bank accounts, and service information
+
+### **Free Cabin Charter Entities**
+- **FreeCabinPackage**: Available cabin charter packages with comprehensive information including yacht details, pricing, availability, and location data
+- **FreeCabinSearchCriteria**: Search criteria for filtering including countries, regions, locations, and packages
+
+### **Detailed Yacht Specification Entities**
+- **YachtEquipment**: Detailed equipment information for each yacht including standard and optional equipment
+- **YachtService**: Available services for each yacht with pricing and availability
+- **YachtPricing**: Seasonal pricing information with date ranges and rates
+- **YachtRating**: Customer ratings and reviews with detailed scoring breakdowns
+
+### **Extended Yacht Data Fields**
+The yacht model now includes 50+ additional fields:
+
+#### **Sailing-Specific Data**
+- `sailTypeId`, `sailRenewed` - Sail type and renewal information
+- `genoaTypeId`, `genoaRenewed` - Genoa sail specifications
+- `steeringTypeId`, `rudderBlades` - Steering system details
+- `mainSailType`, `genoaType`, `steeringType` - Equipment type descriptions
+
+#### **Charter & Propulsion Details**
+- `charterType` - BAREBOAT, CREWED, or SKIPPERED
+- `propulsionType` - SAIL, MOTOR, or CATAMARAN
+- `fourStarCharter` - Premium charter classification
+
+#### **Model Specifications**
+- `modelLoa`, `modelBeam`, `modelDraft` - Official model dimensions
+- `modelDisplacement`, `modelVirtualLength` - Technical specifications
+- `displacement`, `virtualLength` - Additional technical data
+
+#### **Berth Specifications**
+- `berthsCabin`, `berthsSalon`, `berthsCrew` - Detailed berth breakdown
+- Enhanced berth capacity information
+
+#### **Equipment & Services**
+- `standardEquipment` - Array of standard equipment items (now properly populated from Nausys API)
+- `optionalEquipment` - Array of optional equipment items
+- `services` - Array of available services
+- `seasonalPricing` - Array of seasonal pricing data
+- `ratings` - Customer ratings and reviews
+
+#### **Picture Management**
+- `picturesUrl` - Array of yacht pictures with `?w=600&h=600` sizing parameters
+- `mainPictureUrl` - Main yacht picture with sizing parameters
+- All Nausys CDN URLs automatically include sizing parameters for consistent display
+
+#### **Technical Equipment**
+- Navigation: `gps`, `autopilot`, `radar`, `depthSounder`, `windInstrument`, `chartplotter`
+- Safety: `lifeRaft`, `epirb`, `firstAidKit`
+- Entertainment: `radio`, `cdPlayer`, `speakers`, `wifi`, `tv`, `dvd`
+- Galley: `refrigerator`, `freezer`, `oven`, `stove`, `microwave`, `coffeeMachine`, `iceMaker`
+- Deck: `anchorWindlass`, `hotWater`, `airConditioning`, `heating`
+- Interior: `washingMachine`, `dishwasher`, `generator`, `inverter`
 
 ## 🚀 **Deployment**
 
@@ -409,9 +608,9 @@ npm run test         # Run tests
 
 ---
 
-**Last Updated**: September 2, 2025  
-**API Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working including journey-based filtering, free yachts filtering, advanced location filtering, comprehensive yacht specification filtering, and cabin charter API**
+**Last Updated**: September 4, 2025  
+**API Version**: 4.0.0  
+**Status**: ✅ **PRODUCTION READY - All features working including journey-based filtering, free yachts filtering, advanced location filtering, comprehensive yacht specification filtering (50+ fields), cabin charter API, free cabin charter API with real-time availability, detailed yacht equipment/services/pricing/ratings API, sized pictures (600x600), and complete equipment data from Nausys API**
 
 ---
 

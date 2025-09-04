@@ -89,7 +89,18 @@ Environment=PORT=3000
 WantedBy=multi-user.target
 "@
 
-ssh -i $PEM_FILE "${SERVER_USER}@${SERVER_IP}" "echo '$serviceContent' | sudo tee /etc/systemd/system/$SERVICE_NAME.service > /dev/null"
+# Create temporary service file
+$tempServiceFile = "temp_service.txt"
+$serviceContent | Out-File -FilePath $tempServiceFile -Encoding UTF8
+
+# Copy service file to server
+scp -i $PEM_FILE $tempServiceFile "${SERVER_USER}@${SERVER_IP}:/tmp/${SERVICE_NAME}.service"
+
+# Move service file to systemd directory
+ssh -i $PEM_FILE "${SERVER_USER}@${SERVER_IP}" "sudo mv /tmp/${SERVICE_NAME}.service /etc/systemd/system/"
+
+# Clean up temporary file
+Remove-Item $tempServiceFile -Force
 
 # Reload systemd and enable service
 Write-Host "🔄 Enabling and starting service..." -ForegroundColor Yellow

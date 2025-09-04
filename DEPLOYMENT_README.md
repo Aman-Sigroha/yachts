@@ -9,6 +9,9 @@ High-level deployment guide and current status for the Yacht Charter API with ad
 - **🚀 All Features Working**: Search, filtering, catalogue, automated sync, availability
 - **🔧 Swagger Fixed**: No more YAML syntax errors
 - **🧹 Production Cleaned**: Optimized production environment
+- **🖼️ Sized Pictures**: All yacht pictures include `?w=600&h=600` parameters
+- **⚓ Complete Equipment Data**: Standard equipment properly populated from Nausys API
+- **🔧 TypeScript Fixed**: All compilation errors resolved
 
 ## 📋 **Project Summary**
 
@@ -22,6 +25,8 @@ The Yacht Charter API is a comprehensive Node.js/TypeScript backend service that
 - **Journey-Based Filtering**: Filter yachts by actual charter routes (start/end destinations)
 - **Free Yachts Filtering**: Get only available yachts for specific date ranges
 - **Comprehensive Yacht Specification Filtering**: Filter by toilets, length, year, berths, beam, premium status, sale status, and fuel type
+- **Cabin Charter API**: Complete API for cabin charter bases and companies
+- **Free Cabin Charter API**: Real-time cabin charter package availability with comprehensive pricing and location information
 - **Complete API Documentation**: Auto-generated Swagger/OpenAPI docs
 
 ## 🏗️ **Architecture**
@@ -58,6 +63,23 @@ The Yacht Charter API is a comprehensive Node.js/TypeScript backend service that
 - `GET /api/catalogue/countries` - All countries with multi-language names
 - `GET /api/catalogue/regions` - All regions with multi-language names
 - `GET /api/catalogue/locations` - All locations/marinas with multi-language names
+
+### **Cabin Charter API**
+- `GET /api/cabin-charters/bases` - List cabin charter bases with filtering and pagination
+- `GET /api/cabin-charters/bases/:id` - Get specific cabin charter base details
+- `GET /api/cabin-charters/companies` - List cabin charter companies with filtering and pagination
+- `GET /api/cabin-charters/companies/:id` - Get specific cabin charter company details
+- `GET /api/cabin-charters/catalogue` - Combined bases and companies data
+- `GET /api/cabin-charters/filters` - Available filter options for cabin charter data
+
+### **Free Cabin Charter API**
+- `GET /api/free-cabin-charter/search-criteria` - Get available search criteria (countries, regions, locations, packages)
+- `POST /api/free-cabin-charter/search` - Search free cabin charter packages with filters
+- `GET /api/free-cabin-charter/current-week` - Get current week free cabin charter packages
+- `GET /api/free-cabin-charter/packages` - List all free cabin charter packages with pagination
+- `GET /api/free-cabin-charter/packages/:id` - Get specific free cabin charter package details
+- `GET /api/free-cabin-charter/comprehensive` - Get comprehensive free cabin charter data for UI
+- `POST /api/free-cabin-charter/sync` - Sync free cabin charter data from Nausys API
 
 ### **Other Endpoints**
 - `GET /api/invoices` - Invoice management
@@ -254,6 +276,15 @@ curl "http://3.69.225.186:3000/api/yachts/479287/calendar?year=2025&month=1"
 
 # Test bulk availability
 curl "http://3.69.225.186:3000/api/yachts/bulk-availability?yachtIds=479287,479288&startDate=2025-01-15&endDate=2025-01-25"
+
+# Test cabin charter endpoints
+curl "http://3.69.225.186:3000/api/cabin-charters/bases?limit=5"
+curl "http://3.69.225.186:3000/api/cabin-charters/companies?limit=5"
+
+# Test free cabin charter endpoints
+curl "http://3.69.225.186:3000/api/free-cabin-charter/packages?limit=5"
+curl "http://3.69.225.186:3000/api/free-cabin-charter/comprehensive?limit=5"
+curl "http://3.69.225.186:3000/api/free-cabin-charter/search-criteria"
 ```
 
 ### **Swagger Documentation**
@@ -395,10 +426,10 @@ ssh -i nautio.pem ubuntu@3.69.225.186 "sudo journalctl -u yacht-api -n 20"
 
 ---
 
-**Last Updated**: August 20, 2025  
-**Deployment Guide Version**: 3.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working including date filtering and location-based filtering**
+**Last Updated**: September 4, 2025  
+**Deployment Guide Version**: 4.0.0  
+**Status**: ✅ **PRODUCTION READY - All features working including date filtering, location-based filtering, cabin charter API, free cabin charter API, sized pictures (600x600), and complete equipment data from Nausys API**
 
 ---
 
-*This deployment overview covers the current status and key information for the Yacht Charter API with advanced search, filtering, catalogue system, and yacht availability management.*
+*This deployment overview covers the current status and key information for the Yacht Charter API with advanced search, filtering, catalogue system, yacht availability management, free cabin charter functionality, sized pictures, and complete equipment data.*

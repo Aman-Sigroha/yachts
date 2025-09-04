@@ -4,7 +4,7 @@ import { CabinCharterBase, CabinCharterCompany } from '../models/cabin-charter';
 const router = express.Router();
 
 /**
- * @openapi
+ * @swagger
  * /api/cabin-charters/bases:
  *   get:
  *     summary: Get all cabin charter bases
@@ -89,7 +89,7 @@ router.get('/bases', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/cabin-charters/bases/{baseId}:
  *   get:
  *     summary: Get specific charter base
@@ -137,7 +137,7 @@ router.get('/bases/:baseId', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/cabin-charters/bases/by-company/{companyId}:
  *   get:
  *     summary: Get bases by company
@@ -202,7 +202,7 @@ router.get('/bases/by-company/:companyId', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/cabin-charters/bases/by-location/{locationId}:
  *   get:
  *     summary: Get bases by location
@@ -267,7 +267,7 @@ router.get('/bases/by-location/:locationId', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/cabin-charters/companies:
  *   get:
  *     summary: Get all cabin charter companies
@@ -352,7 +352,7 @@ router.get('/companies', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/cabin-charters/companies/{companyId}:
  *   get:
  *     summary: Get specific charter company
@@ -400,7 +400,7 @@ router.get('/companies/:companyId', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/cabin-charters/companies/by-country/{countryId}:
  *   get:
  *     summary: Get companies by country
@@ -465,7 +465,7 @@ router.get('/companies/by-country/:countryId', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/cabin-charters/catalogue:
  *   get:
  *     summary: Get cabin charter catalogue
@@ -531,7 +531,7 @@ router.get('/catalogue', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/cabin-charters/filters:
  *   get:
  *     summary: Get cabin charter filter options

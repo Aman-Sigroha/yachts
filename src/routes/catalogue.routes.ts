@@ -14,7 +14,7 @@ import { Yacht } from '../models/yacht';
 const router = express.Router();
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/filters:
  *   get:
  *     summary: Get all available filter options for yacht search
@@ -376,7 +376,7 @@ router.get('/filters', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/filters/active:
  *   get:
  *     summary: Get only active filter options that have at least one yacht
@@ -606,7 +606,7 @@ router.get('/filters/active', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/categories:
  *   get:
  *     summary: Get yacht categories
@@ -648,7 +648,7 @@ router.get('/categories', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/categories/active:
  *   get:
  *     summary: Get only yacht categories that have at least one yacht
@@ -696,7 +696,7 @@ router.get('/categories/active', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/builders:
  *   get:
  *     summary: Get yacht builders
@@ -738,7 +738,7 @@ router.get('/builders', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/builders/active:
  *   get:
  *     summary: Get only yacht builders that have at least one yacht
@@ -786,7 +786,7 @@ router.get('/builders/active', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/bases:
  *   get:
  *     summary: Get charter bases
@@ -828,7 +828,7 @@ router.get('/bases', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/bases/active:
  *   get:
  *     summary: Get only charter bases that have at least one yacht
@@ -876,7 +876,7 @@ router.get('/bases/active', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/countries:
  *   get:
  *     summary: Get all countries with multi-language names
@@ -894,9 +894,39 @@ router.get('/bases/active', async (req, res) => {
 router.get('/countries', async (req, res) => {
     try {
         const countries = await Country.find().sort({ 'name.textEN': 1 });
+        
+        // Format countries data for UI consumption
+        const formattedCountries = countries.map(country => ({
+            id: country.id,
+            code: country.code,
+            code2: country.code2,
+            name: {
+                en: country.name.textEN || '',
+                de: country.name.textDE || '',
+                fr: country.name.textFR || '',
+                it: country.name.textIT || '',
+                es: country.name.textES || '',
+                hr: country.name.textHR || '',
+                cz: country.name.textCZ || '',
+                hu: country.name.textHU || '',
+                lt: country.name.textLT || '',
+                lv: country.name.textLV || '',
+                nl: country.name.textNL || '',
+                no: country.name.textNO || '',
+                pl: country.name.textPL || '',
+                ru: country.name.textRU || '',
+                se: country.name.textSE || '',
+                si: country.name.textSI || '',
+                sk: country.name.textSK || '',
+                tr: country.name.textTR || ''
+            },
+            displayName: country.name.textEN || country.name.textDE || country.name.textFR || 'Unknown'
+        }));
+
         res.json({
             success: true,
-            data: countries
+            data: formattedCountries,
+            total: formattedCountries.length
         });
     } catch (error: any) {
         res.status(500).json({
@@ -907,7 +937,7 @@ router.get('/countries', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/regions:
  *   get:
  *     summary: Get all regions with multi-language names
@@ -925,9 +955,38 @@ router.get('/countries', async (req, res) => {
 router.get('/regions', async (req, res) => {
     try {
         const regions = await Region.find().sort({ 'name.textEN': 1 });
+        
+        // Format regions data for UI consumption
+        const formattedRegions = regions.map(region => ({
+            id: region.id,
+            countryId: region.countryId,
+            name: {
+                en: region.name.textEN || '',
+                de: region.name.textDE || '',
+                fr: region.name.textFR || '',
+                it: region.name.textIT || '',
+                es: region.name.textES || '',
+                hr: region.name.textHR || '',
+                cz: region.name.textCZ || '',
+                hu: region.name.textHU || '',
+                lt: region.name.textLT || '',
+                lv: region.name.textLV || '',
+                nl: region.name.textNL || '',
+                no: region.name.textNO || '',
+                pl: region.name.textPL || '',
+                ru: region.name.textRU || '',
+                se: region.name.textSE || '',
+                si: region.name.textSI || '',
+                sk: region.name.textSK || '',
+                tr: region.name.textTR || ''
+            },
+            displayName: region.name.textEN || region.name.textDE || region.name.textFR || 'Unknown'
+        }));
+
         res.json({
             success: true,
-            data: regions
+            data: formattedRegions,
+            total: formattedRegions.length
         });
     } catch (error: any) {
         res.status(500).json({
@@ -938,7 +997,7 @@ router.get('/regions', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/locations:
  *   get:
  *     summary: Get all locations/marinas with multi-language names
@@ -956,9 +1015,39 @@ router.get('/regions', async (req, res) => {
 router.get('/locations', async (req, res) => {
     try {
         const locations = await Location.find().sort({ 'name.textEN': 1 });
+        
+        // Format locations data for UI consumption
+        const formattedLocations = locations.map(location => ({
+            id: location.id,
+            countryId: location.countryId,
+            regionId: location.regionId,
+            name: {
+                en: location.name.textEN || '',
+                de: location.name.textDE || '',
+                fr: location.name.textFR || '',
+                it: location.name.textIT || '',
+                es: location.name.textES || '',
+                hr: location.name.textHR || '',
+                cz: location.name.textCZ || '',
+                hu: location.name.textHU || '',
+                lt: location.name.textLT || '',
+                lv: location.name.textLV || '',
+                nl: location.name.textNL || '',
+                no: location.name.textNO || '',
+                pl: location.name.textPL || '',
+                ru: location.name.textRU || '',
+                se: location.name.textSE || '',
+                si: location.name.textSI || '',
+                sk: location.name.textSK || '',
+                tr: location.name.textTR || ''
+            },
+            displayName: location.name.textEN || location.name.textDE || location.name.textFR || 'Unknown'
+        }));
+
         res.json({
             success: true,
-            data: locations
+            data: formattedLocations,
+            total: formattedLocations.length
         });
     } catch (error: any) {
         res.status(500).json({
@@ -969,7 +1058,7 @@ router.get('/locations', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/ranges:
  *   get:
  *     summary: Get available value ranges for yacht filters
@@ -1057,7 +1146,7 @@ router.get('/ranges', async (req, res) => {
 });
 
 /**
- * @openapi
+ * @swagger
  * /api/catalogue/charter-companies/active:
  *   get:
  *     summary: Get only charter companies that have at least one yacht
