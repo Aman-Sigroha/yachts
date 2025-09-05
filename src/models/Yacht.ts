@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import { IMultilingualText, MultilingualTextSchema } from './common';
+import { ICrewMember } from './crew-member';
 
 // Yacht Equipment Interface
 export interface IYachtEquipment {
@@ -82,19 +83,19 @@ export interface IYacht extends Document {
     highlights?: IMultilingualText;
     note?: IMultilingualText;
     crewCount?: number;
-    crewMembersIds?: number[];
     maxDiscountFromCommission?: number;
+    // Additional fields for API response
+    obligatoryExtras?: IYachtService[];
+    totalPeople?: number;
+    details?: IMultilingualText;
+    images?: string[];
+    pricing?: IYachtPricing[];
     agencyDiscountType?: string;
     isPremium?: boolean;
     onSale?: boolean;
     registrationNumber?: string;
     registrationCertified?: boolean;
     outOfFleetDate?: Date;
-    youtubeVideos?: string;
-    vimeoVideos?: string;
-    linkFor360tour?: string;
-    yachtTutorialVimeoVideos?: string;
-    yachtTutorialYoutubeVideos?: string;
     showers?: number;
     showersCrew?: number;
     recommendedPersons?: number;
@@ -126,13 +127,11 @@ export interface IYacht extends Document {
     hullColor?: string;
     thirdPartyInsuranceAmount?: number;
     thirdPartyInsuranceCurrency?: string;
-    checkInTime?: string;
-    checkOutTime?: string;
     crewMemberIds?: number[];
+    crewMembers?: ICrewMember[];
     highlightsIntText?: IMultilingualText;
     noteIntText?: IMultilingualText;
     flagsid?: number[];
-    canMakeBookingFixed?: boolean;
     seasonSpecificData?: any[];
     euminia?: any;
     
@@ -282,19 +281,36 @@ const YachtSchema = new Schema({
     highlights: MultilingualTextSchema,
     note: MultilingualTextSchema,
     crewCount: Number,
-    crewMembersIds: [Number],
     maxDiscountFromCommission: Number,
+    // Additional fields for API response
+    obligatoryExtras: [{
+        id: Number,
+        name: MultilingualTextSchema,
+        description: MultilingualTextSchema,
+        price: Number,
+        currency: String,
+        priceMeasure: String,
+        isObligatory: Boolean,
+        isOptional: Boolean
+    }],
+    totalPeople: Number,
+    details: MultilingualTextSchema,
+    images: [String],
+    pricing: [{
+        period: String,
+        startDate: String,
+        endDate: String,
+        weeklyPrice: Number,
+        currency: String,
+        discount: Number,
+        discountType: String
+    }],
     agencyDiscountType: String,
     isPremium: Boolean,
     onSale: Boolean,
     registrationNumber: String,
     registrationCertified: Boolean,
     outOfFleetDate: Date,
-    youtubeVideos: String,
-    vimeoVideos: String,
-    linkFor360tour: String,
-    yachtTutorialVimeoVideos: String,
-    yachtTutorialYoutubeVideos: String,
     showers: Number,
     showersCrew: Number,
     recommendedPersons: Number,
@@ -326,13 +342,11 @@ const YachtSchema = new Schema({
     hullColor: String,
     thirdPartyInsuranceAmount: Number,
     thirdPartyInsuranceCurrency: String,
-    checkInTime: String,
-    checkOutTime: String,
     crewMemberIds: [Number],
+    crewMembers: [{ type: Schema.Types.ObjectId, ref: 'CrewMember' }],
     highlightsIntText: MultilingualTextSchema,
     noteIntText: MultilingualTextSchema,
     flagsid: [Number],
-    canMakeBookingFixed: Boolean,
     seasonSpecificData: [Schema.Types.Mixed],
     euminia: Schema.Types.Mixed,
     

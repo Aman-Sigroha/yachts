@@ -5,6 +5,21 @@ All notable changes to the Yacht Charter API project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.2] - 2025-09-05
+
+### 🔧 Bug Fixes & Improvements
+
+### 🐛 Fixed
+- **Equipment Names API Response**: Fixed equipment names not appearing in API responses - now properly returns multilingual names for both standard and optional equipment
+- **API Route Equipment Mapping**: Updated yacht API routes to use embedded `standardEquipment` and `optionalEquipment` fields instead of separate `YachtEquipment` collection
+- **Production Deployment**: Fixed deployment to correct production directory (`/home/ubuntu/yachts` instead of `/home/ubuntu/yacht-api`)
+
+### ✅ Improved
+- **Multilingual Equipment Names**: Equipment names now available in 20+ languages (EN, DE, FR, IT, ES, HR, CZ, HU, LT, LV, NL, NO, PL, RU, SE, SI, SK, TR)
+- **Equipment Data Population**: Enhanced sync process to properly populate equipment names from Equipment catalogue
+- **API Response Format**: Equipment items now include complete multilingual name objects in API responses
+- **Production Stability**: Ensured correct service directory and proper code deployment
+
 ## [4.0.1] - 2025-09-04
 
 ### 🔧 Bug Fixes & Improvements

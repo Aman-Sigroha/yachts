@@ -4,16 +4,20 @@ import { Reservation } from '../models/reservation'; // Added import for Reserva
 import { Base, Country, Region, Location, Journey, YachtBuilder, Equipment } from '../models/catalogue';
 import { YachtEquipment } from '../models/yacht-equipment';
 import { YachtPricing } from '../models/yacht-pricing';
+import { CrewMember } from '../models/crew-member';
 import { getFreeYachts } from '../sync';
 
 const router = express.Router();
+
+// Ensure CrewMember model is registered with Mongoose
+CrewMember;
 
 /**
  * @swagger
  * /api/yachts:
  *   get:
  *     summary: Get all yachts with filtering and search
- *     description: Retrieve yachts with comprehensive filtering, searching, and pagination. Journey-based filtering (startDestination/endDestination) requires journey data to be synced from the Nausys API.
+ *     description: Retrieve yachts with comprehensive filtering, searching, and pagination. Journey-based filtering (startDestination/endDestination) requires journey data to be synced from the Nausys API. Equipment data includes multilingual names in 20+ languages for both standard and optional equipment.
  *     parameters:
  *       - in: query
  *         name: q
@@ -330,6 +334,449 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: List of yachts with pagination and filter summary
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                       name:
+ *                         type: object
+ *                         properties:
+ *                           textEN:
+ *                             type: string
+ *                           textDE:
+ *                             type: string
+ *                           textFR:
+ *                             type: string
+ *                           textIT:
+ *                             type: string
+ *                           textES:
+ *                             type: string
+ *                           textHR:
+ *                             type: string
+ *                       equipment:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: integer
+ *                             equipmentId:
+ *                               type: integer
+ *                             name:
+ *                               type: object
+ *                               properties:
+ *                                 textEN:
+ *                                   type: string
+ *                                 textDE:
+ *                                   type: string
+ *                                 textFR:
+ *                                   type: string
+ *                                 textIT:
+ *                                   type: string
+ *                                 textES:
+ *                                   type: string
+ *                                 textHR:
+ *                                   type: string
+ *                                 textCZ:
+ *                                   type: string
+ *                                 textHU:
+ *                                   type: string
+ *                                 textLT:
+ *                                   type: string
+ *                                 textLV:
+ *                                   type: string
+ *                                 textNL:
+ *                                   type: string
+ *                                 textNO:
+ *                                   type: string
+ *                                 textPL:
+ *                                   type: string
+ *                                 textRU:
+ *                                   type: string
+ *                                 textSE:
+ *                                   type: string
+ *                                 textSI:
+ *                                   type: string
+ *                                 textSK:
+ *                                   type: string
+ *                                 textTR:
+ *                                   type: string
+ *                             category:
+ *                               type: string
+ *                               enum: [Standard, Optional]
+ *                             quantity:
+ *                               type: integer
+ *                             isStandard:
+ *                               type: boolean
+ *                             isOptional:
+ *                               type: boolean
+ *                             highlight:
+ *                               type: boolean
+ *                             comment:
+ *                               type: object
+ *                       builder:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           name:
+ *                             type: object
+ *                             properties:
+ *                               textEN:
+ *                                 type: string
+ *                               textDE:
+ *                                 type: string
+ *                               textFR:
+ *                                 type: string
+ *                               textIT:
+ *                                 type: string
+ *                               textES:
+ *                                 type: string
+ *                               textHR:
+ *                                 type: string
+ *                       charterCompany:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           name:
+ *                             type: object
+ *                             properties:
+ *                               textEN:
+ *                                 type: string
+ *                               textDE:
+ *                                 type: string
+ *                               textFR:
+ *                                 type: string
+ *                               textIT:
+ *                                 type: string
+ *                               textES:
+ *                                 type: string
+ *                               textHR:
+ *                                 type: string
+ *                       yachtModel:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           name:
+ *                             type: object
+ *                             properties:
+ *                               textEN:
+ *                                 type: string
+ *                               textDE:
+ *                                 type: string
+ *                               textFR:
+ *                                 type: string
+ *                               textIT:
+ *                                 type: string
+ *                               textES:
+ *                                 type: string
+ *                               textHR:
+ *                                 type: string
+ *                           loa:
+ *                             type: number
+ *                           beam:
+ *                             type: number
+ *                           draft:
+ *                             type: number
+ *                       base:
+ *                         type: object
+ *                         properties:
+ *                           id:
+ *                             type: integer
+ *                           location:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: integer
+ *                               name:
+ *                                 type: object
+ *                                 properties:
+ *                                   textEN:
+ *                                     type: string
+ *                                   textDE:
+ *                                     type: string
+ *                                   textFR:
+ *                                     type: string
+ *                                   textIT:
+ *                                     type: string
+ *                                   textES:
+ *                                     type: string
+ *                                   textHR:
+ *                                     type: string
+ *                               region:
+ *                                 type: object
+ *                                 properties:
+ *                                   id:
+ *                                     type: integer
+ *                                   name:
+ *                                     type: object
+ *                                     properties:
+ *                                       textEN:
+ *                                         type: string
+ *                                       textDE:
+ *                                         type: string
+ *                                       textFR:
+ *                                         type: string
+ *                                       textIT:
+ *                                         type: string
+ *                                       textES:
+ *                                         type: string
+ *                                       textHR:
+ *                                         type: string
+ *                                   country:
+ *                                     type: object
+ *                                     properties:
+ *                                       id:
+ *                                         type: integer
+ *                                       name:
+ *                                           type: object
+ *                                           properties:
+ *                                             textEN:
+ *                                               type: string
+ *                                             textDE:
+ *                                               type: string
+ *                                             textFR:
+ *                                               type: string
+ *                                             textIT:
+ *                                               type: string
+ *                                             textES:
+ *                                               type: string
+ *                                             textHR:
+ *                                               type: string
+ *                                       code:
+ *                                         type: string
+ *                                       code2:
+ *                                         type: string
+ *                           lat:
+ *                             type: number
+ *                           lon:
+ *                             type: number
+ *                           checkInTime:
+ *                             type: string
+ *                           checkOutTime:
+ *                             type: string
+ *                       pricing:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: integer
+ *                             amount:
+ *                               type: string
+ *                             currency:
+ *                               type: string
+ *                             calculationType:
+ *                               type: string
+ *                             serviceId:
+ *                               type: integer
+ *                             priceMeasureId:
+ *                               type: integer
+ *                             obligatory:
+ *                               type: boolean
+ *                             onRequestOnly:
+ *                               type: boolean
+ *                             validMinPax:
+ *                               type: integer
+ *                             validPeriodFrom:
+ *                               type: string
+ *                             validPeriodTo:
+ *                               type: string
+ *                             description:
+ *                               type: object
+ *                               properties:
+ *                                 textEN:
+ *                                   type: string
+ *                                 textDE:
+ *                                   type: string
+ *                                 textFR:
+ *                                   type: string
+ *                                 textIT:
+ *                                   type: string
+ *                                 textES:
+ *                                   type: string
+ *                                 textHR:
+ *                                   type: string
+ *                       picturesUrl:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                       mainPictureUrl:
+ *                         type: string
+ *                       videoUrl:
+ *                         type: string
+ *                       description:
+ *                         type: object
+ *                         properties:
+ *                           en:
+ *                             type: string
+ *                           de:
+ *                             type: string
+ *                           fr:
+ *                             type: string
+ *                           it:
+ *                             type: string
+ *                           es:
+ *                             type: string
+ *                           hr:
+ *                             type: string
+ *                       highlights:
+ *                         type: object
+ *                         properties:
+ *                           textEN:
+ *                             type: string
+ *                           textDE:
+ *                             type: string
+ *                           textFR:
+ *                             type: string
+ *                           textIT:
+ *                             type: string
+ *                           textES:
+ *                             type: string
+ *                           textHR:
+ *                             type: string
+ *                       berths:
+ *                         type: integer
+ *                       cabins:
+ *                         type: integer
+ *                       wcCrew:
+ *                         type: integer
+ *                       guests:
+ *                         type: integer
+ *                       yachtType:
+ *                         type: object
+ *                         properties:
+ *                           categoryId:
+ *                             type: integer
+ *                           charterType:
+ *                             type: string
+ *                           propulsionType:
+ *                             type: string
+ *                       engine:
+ *                         type: object
+ *                         properties:
+ *                           count:
+ *                             type: integer
+ *                       price:
+ *                         type: object
+ *                         properties:
+ *                           deposit:
+ *                             type: integer
+ *                           currency:
+ *                             type: string
+ *                       flagsid:
+ *                         type: array
+ *                         items:
+ *                           type: integer
+ *                         description: Array of country IDs for flags
+ *                       obligatoryExtras:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: integer
+ *                             name:
+ *                               type: object
+ *                               properties:
+ *                                 textEN:
+ *                                   type: string
+ *                                 textDE:
+ *                                   type: string
+ *                                 textFR:
+ *                                   type: string
+ *                                 textIT:
+ *                                   type: string
+ *                                 textES:
+ *                                   type: string
+ *                                 textHR:
+ *                                   type: string
+ *                             price:
+ *                               type: number
+ *                             currency:
+ *                               type: string
+ *                             isObligatory:
+ *                               type: boolean
+ *                         description: Array of obligatory extras/services
+ *                       services:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: integer
+ *                             name:
+ *                               type: object
+ *                               properties:
+ *                                 textEN:
+ *                                   type: string
+ *                                 textDE:
+ *                                   type: string
+ *                                 textFR:
+ *                                   type: string
+ *                                 textIT:
+ *                                   type: string
+ *                                 textES:
+ *                                   type: string
+ *                                 textHR:
+ *                                   type: string
+ *                             price:
+ *                               type: number
+ *                             currency:
+ *                               type: string
+ *                             isObligatory:
+ *                               type: boolean
+ *                             isOptional:
+ *                               type: boolean
+ *                         description: Array of all services
+ *                       seasonalPricing:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             seasonId:
+ *                               type: integer
+ *                             seasonName:
+ *                               type: string
+ *                             startDate:
+ *                               type: string
+ *                             endDate:
+ *                               type: string
+ *                             prices:
+ *                               type: array
+ *                               items:
+ *                                 type: object
+ *                         description: Array of seasonal pricing data
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     page:
+ *                       type: integer
+ *                     limit:
+ *                       type: integer
+ *                     total:
+ *                       type: integer
+ *                     pages:
+ *                       type: integer
+ *                 filters:
+ *                   type: object
+ *                   properties:
+ *                     applied:
+ *                       type: object
+ *                     available:
+ *                       type: object
  *       500:
  *         description: Server error
  */
@@ -1050,6 +1497,7 @@ router.get('/', async (req, res) => {
                 .populate('builder', 'id name')
                 .populate('charterCompany', 'id name')
                 .populate('yachtModel', 'id name loa beam draft')
+                .populate('crewMembers', 'id name surname crewRole livingPlace summary photoUrl languages')
                 .skip(skip)
                 .limit(limitNum)
                 .sort(sortOptions),
@@ -1085,25 +1533,27 @@ router.get('/', async (req, res) => {
         const enhancedYachts = await Promise.all(yachts.map(async (yacht: any) => {
             const yachtObj = yacht.toObject();
             
-            // Get yacht equipment
-            const equipment = await YachtEquipment.find({ yachtId: yacht.id }).lean();
-            
-            // Get yacht pricing
+             // Get yacht pricing
             const pricing = await YachtPricing.find({ yachtId: yacht.id })
                 .sort({ startDate: 1 })
                 .lean();
             
+            // Combine standard and optional equipment from yacht document
+            const standardEquipment = yacht.standardEquipment || [];
+            const optionalEquipment = yacht.optionalEquipment || [];
+            const allEquipment = [...standardEquipment, ...optionalEquipment];
+            
             // Format equipment data
-            const formattedEquipment = equipment.map((eq: any) => ({
-                id: eq.equipmentId,
+            const formattedEquipment = allEquipment.map((eq: any) => ({
+                id: eq.id,
+                equipmentId: eq.equipmentId,
                 name: eq.name,
                 category: eq.category,
-                subcategory: eq.subcategory,
                 quantity: eq.quantity,
                 isStandard: eq.isStandard,
                 isOptional: eq.isOptional,
-                price: eq.price,
-                currency: eq.currency
+                highlight: eq.highlight,
+                comment: eq.comment
             }));
             
             // Format pricing data
@@ -1156,6 +1606,7 @@ router.get('/', async (req, res) => {
                 equipment: formattedEquipment,
                 pricing: formattedPricing,
                 base: formattedBase,
+                crewMembers: yacht.crewMembers || [],
                 // Enhanced fields for UI
                 guests: yacht.berths,
                 cabins: yacht.cabins,
@@ -1184,12 +1635,12 @@ router.get('/', async (req, res) => {
                     hr: yacht.description?.textHR || ''
                 },
                 highlights: {
-                    en: yacht.highlights?.textEN || '',
-                    de: yacht.highlights?.textDE || '',
-                    fr: yacht.highlights?.textFR || '',
-                    it: yacht.highlights?.textIT || '',
-                    es: yacht.highlights?.textES || '',
-                    hr: yacht.highlights?.textHR || ''
+                    textEN: yacht.highlights?.textEN || '',
+                    textDE: yacht.highlights?.textDE || '',
+                    textFR: yacht.highlights?.textFR || '',
+                    textIT: yacht.highlights?.textIT || '',
+                    textES: yacht.highlights?.textES || '',
+                    textHR: yacht.highlights?.textHR || ''
                 }
             };
         }));
@@ -1376,6 +1827,7 @@ router.get('/search', async (req, res) => {
                 .populate('builder', 'id name')
                 .populate('charterCompany', 'id name')
                 .populate('yachtModel', 'id name loa beam draft')
+                .populate('crewMembers', 'id name surname crewRole livingPlace summary photoUrl languages')
                 .skip(skip)
                 .limit(limitNum)
                 .sort(sortOptions),
@@ -1605,7 +2057,8 @@ router.get('/:id', async (req, res) => {
         const yacht = await Yacht.findOne({ id: Number(req.params.id) })
             .populate('builder', 'id name')
             .populate('charterCompany', 'id name')
-            .populate('yachtModel', 'id name loa beam draft');
+            .populate('yachtModel', 'id name loa beam draft')
+            .populate('crewMembers', 'id name surname crewRole livingPlace summary photoUrl languages');
         
         if (!yacht) {
             return res.status(404).json({

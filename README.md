@@ -20,6 +20,8 @@ A comprehensive Node.js/TypeScript API for yacht charter management with advance
 - **🖼️ Sized Pictures**: All yacht pictures now include `?w=600&h=600` parameters for consistent sizing
 - **⚓ Complete Equipment Data**: Standard equipment now properly populated from Nausys API
 - **🔧 TypeScript Fixed**: All compilation errors resolved with proper type definitions
+- **🌍 Multilingual Equipment Names**: Equipment names now available in 20+ languages with proper API response formatting
+- **🔧 Equipment API Fixed**: Both standard and optional equipment now return complete multilingual names in API responses
 
 ## 🎯 **Key Features**
 
@@ -129,6 +131,42 @@ npm start
 - `GET /api/yacht-ratings/:id` - Get specific rating details
 - `GET /api/yacht-ratings/yacht/:yachtId` - Get ratings for specific yacht
 - `GET /api/yacht-ratings/summary` - Get rating summary statistics
+
+### **Equipment Names with Multilingual Support**
+The yacht API now includes comprehensive equipment data with multilingual names:
+
+```bash
+# Example equipment response with multilingual names
+{
+  "id": 54113,
+  "name": {
+    "textEN": "Autopilot",
+    "textDE": "Autopilot", 
+    "textFR": "Pilote automatique",
+    "textIT": "Autopilota",
+    "textES": "Piloto automático",
+    "textHR": "Automatski pilot",
+    "textCZ": "Autopilot",
+    "textHU": "Robotpilóta",
+    "textLT": "Autopilotas",
+    "textLV": "Autopilotas",
+    "textNL": "Autopilot",
+    "textNO": "Autopilot",
+    "textPL": "Autopilot",
+    "textRU": "автопилот",
+    "textSE": "Autopilot",
+    "textSI": "Automatski pilot",
+    "textSK": "Autopilot",
+    "textTR": "Otopilot"
+  },
+  "category": "Standard",
+  "quantity": 1,
+  "isStandard": true,
+  "isOptional": false
+}
+```
+
+**Supported Languages**: English, German, French, Italian, Spanish, Croatian, Czech, Hungarian, Lithuanian, Latvian, Dutch, Norwegian, Polish, Russian, Swedish, Slovenian, Slovak, Turkish
 
 ### **Other Endpoints**
 - `GET /api/invoices` - Invoice management
@@ -503,8 +541,8 @@ The yacht model now includes 50+ additional fields:
 - Enhanced berth capacity information
 
 #### **Equipment & Services**
-- `standardEquipment` - Array of standard equipment items (now properly populated from Nausys API)
-- `optionalEquipment` - Array of optional equipment items
+- `standardEquipment` - Array of standard equipment items with multilingual names (20+ languages)
+- `optionalEquipment` - Array of optional equipment items with multilingual names (20+ languages)
 - `services` - Array of available services
 - `seasonalPricing` - Array of seasonal pricing data
 - `ratings` - Customer ratings and reviews
@@ -608,9 +646,9 @@ The yacht model now includes 50+ additional fields:
 
 ---
 
-**Last Updated**: September 4, 2025  
+**Last Updated**: September 5, 2025  
 **API Version**: 4.0.0  
-**Status**: ✅ **PRODUCTION READY - All features working including journey-based filtering, free yachts filtering, advanced location filtering, comprehensive yacht specification filtering (50+ fields), cabin charter API, free cabin charter API with real-time availability, detailed yacht equipment/services/pricing/ratings API, sized pictures (600x600), and complete equipment data from Nausys API**
+**Status**: ✅ **PRODUCTION READY - All features working including journey-based filtering, free yachts filtering, advanced location filtering, comprehensive yacht specification filtering (50+ fields), cabin charter API, free cabin charter API with real-time availability, detailed yacht equipment/services/pricing/ratings API, sized pictures (600x600), complete equipment data from Nausys API, and multilingual equipment names (20+ languages)**
 
 ---
 

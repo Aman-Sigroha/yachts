@@ -276,6 +276,17 @@ export async function getYachtDetails(yachtId: number) {
 export async function getSingleYacht(yachtId: number) {
     const credentials = getCredentials();
     const url = `${BASE_URL}/catalogue/v6/yacht/${yachtId}`;
+    const data = {
+        ...credentials,
+        extendedDataSet: "OBLIGATORY_SERVICES"
+    };
+    const response = await makeRequest(url, 'POST', data);
+    return response.data;
+}
+
+export async function getCrewMember(crewMemberId: number) {
+    const credentials = getCredentials();
+    const url = `${BASE_URL}/client2/v6/crewMember/${crewMemberId}`;
     const response = await makeRequest(url, 'POST', credentials);
     return response.data;
 }

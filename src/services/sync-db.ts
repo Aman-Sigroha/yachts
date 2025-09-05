@@ -8,7 +8,7 @@ import { YachtService } from '../models/yacht-services';
 import { YachtPricing } from '../models/yacht-pricing';
 import { YachtRating } from '../models/yacht-ratings';
 import { Reservation, Occupancy } from '../models/reservation';
-import { CrewMember } from '../models/crew';
+import { CrewMember } from '../models/crew-member';
 import { Invoice } from '../models/invoice';
 import { Contact } from '../models/contact';
 import { CabinCharterBase, CabinCharterCompany } from '../models/cabin-charter';
@@ -35,6 +35,60 @@ const toNumber = (value: string | number): number => {
         return parseFloat(value);
     }
     return value;
+};
+
+// Helper function to populate equipment names from equipment catalogue
+const populateEquipmentNames = async (equipmentItems: any[]) => {
+    if (!equipmentItems || equipmentItems.length === 0) {
+        return equipmentItems;
+    }
+
+    // Get all equipment IDs that need names
+    const equipmentIds = equipmentItems.map(item => item.equipmentId).filter(id => id);
+    
+    if (equipmentIds.length === 0) {
+        return equipmentItems;
+    }
+
+    // Fetch equipment names from catalogue
+    const equipmentCatalogue = await Equipment.find({ id: { $in: equipmentIds } });
+    const equipmentMap = new Map();
+    equipmentCatalogue.forEach(eq => {
+        equipmentMap.set(eq.id, eq.name);
+    });
+
+    // Update equipment items with names
+    return equipmentItems.map(item => ({
+        ...item,
+        name: equipmentMap.get(item.equipmentId) || { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' }
+    }));
+};
+
+// Helper function to populate service names from service catalogue
+const populateServiceNames = async (serviceItems: any[]) => {
+    if (!serviceItems || serviceItems.length === 0) {
+        return serviceItems;
+    }
+
+    // Get all service IDs that need names
+    const serviceIds = serviceItems.map(item => item.serviceId).filter(id => id);
+    
+    if (serviceIds.length === 0) {
+        return serviceItems;
+    }
+
+    // Fetch service names from catalogue
+    const serviceCatalogue = await Service.find({ id: { $in: serviceIds } });
+    const serviceMap = new Map();
+    serviceCatalogue.forEach(svc => {
+        serviceMap.set(svc.id, svc.name);
+    });
+
+    // Update service items with names
+    return serviceItems.map(item => ({
+        ...item,
+        name: serviceMap.get(item.serviceId) || { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' }
+    }));
 };
 
 // Helper function to process reservation data
@@ -252,8 +306,20 @@ export const syncYachtData = async () => {
                     for (const yacht of yachts.yachts) {
                         // Get full yacht details including equipment and pictures
                         console.log(`Fetching full details for yacht ${yacht.id}...`);
-                        const fullYachtData = await api.getSingleYacht(yacht.id);
-                        const fullYacht = fullYachtData?.yachts?.[0] || yacht;
+                        let fullYacht = yacht; // Default to basic yacht data
+                        try {
+                            const fullYachtData = await api.getSingleYacht(yacht.id);
+                            fullYacht = fullYachtData?.yachts?.[0] || yacht;
+                            console.log(`Successfully fetched full details for yacht ${yacht.id}`);
+                            
+                            // Debug logging for empty fields
+                            console.log(`Yacht ${yacht.id} - flagsid:`, fullYacht.flagsid);
+                            console.log(`Yacht ${yacht.id} - services:`, fullYacht.services);
+                            console.log(`Yacht ${yacht.id} - seasonSpecificData:`, fullYacht.seasonSpecificData);
+                        } catch (error) {
+                            console.warn(`Failed to fetch full details for yacht ${yacht.id}, using basic data:`, error instanceof Error ? error.message : String(error));
+                            // Continue with basic yacht data
+                        }
                         // Smart mapping: Find yacht model specifications by name matching
                         let modelSpecs = null;
                         if (fullYacht.yachtModelId || fullYacht.modelId) {
@@ -282,6 +348,22 @@ export const syncYachtData = async () => {
                             console.log(`No yacht model specs found for yacht ${fullYacht.id} (${fullYacht.name?.textEN || 'unnamed'})`);
                         }
 
+                        // Process services first
+                        const yachtServices = fullYacht.seasonSpecificData && fullYacht.seasonSpecificData.length > 0 && fullYacht.seasonSpecificData[0].services
+                            ? await populateServiceNames(fullYacht.seasonSpecificData[0].services.map((service: any) => ({
+                                id: service.id,
+                                serviceId: service.serviceId,
+                                name: service.description || { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' },
+                                description: service.description || { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' },
+                                price: toNumber(service.price) || 0,
+                                currency: 'EUR', // Default currency
+                                priceMeasure: service.priceMeasureId ? `measure_${service.priceMeasureId}` : 'per booking',
+                                calculationType: service.calculationType || 'SEPARATE_PAYMENT',
+                                isObligatory: service.obligatory === true,
+                                isOptional: service.obligatory !== true
+                            })))
+                            : [];
+
                         const result = await Yacht.findOneAndUpdate(
                             { id: fullYacht.id },
                             {
@@ -291,8 +373,8 @@ export const syncYachtData = async () => {
                                 modelId: fullYacht.yachtModelId, // ✅ Fix: Map yachtModelId to modelId
                                 name: toMultilingualText(fullYacht.name),
                                 description: toMultilingualText(fullYacht.description),
-                                highlights: toMultilingualText(fullYacht.highlights),
-                                note: toMultilingualText(fullYacht.note),
+                                highlights: fullYacht.highlightsIntText || toMultilingualText(fullYacht.highlights),
+                                note: fullYacht.noteIntText || toMultilingualText(fullYacht.note),
                                 // Convert numeric fields that might come as strings from API
                                 length: toNumber(fullYacht.length || modelSpecs?.loa), // Use yacht.length or fallback to model.loa
                                 cabins: toNumber(fullYacht.cabins),
@@ -314,6 +396,26 @@ export const syncYachtData = async () => {
                                 depositWhenInsured: fullYacht.depositWhenInsured ? toNumber(fullYacht.depositWhenInsured) : undefined,
                                 crewCount: fullYacht.crewCount ? toNumber(fullYacht.crewCount) : undefined,
                                 maxDiscountFromCommission: fullYacht.maxDiscountFromCommission ? toNumber(fullYacht.maxDiscountFromCommission) : undefined,
+                                // Additional fields for API response
+                                totalPeople: fullYacht.berthsTotal ? toNumber(fullYacht.berthsTotal) : undefined,
+                                details: fullYacht.description ? toMultilingualText(fullYacht.description) : (fullYacht.highlights ? toMultilingualText(fullYacht.highlights) : undefined),
+                                images: fullYacht.picturesURL || [],
+                                // Pricing data from season specific data
+                                pricing: fullYacht.seasonSpecificData && fullYacht.seasonSpecificData.length > 0 && fullYacht.seasonSpecificData[0].prices
+                                    ? fullYacht.seasonSpecificData[0].prices.map((price: any) => ({
+                                        period: price.type || 'weekly',
+                                        startDate: price.dateFrom || '',
+                                        endDate: price.dateTo || '',
+                                        weeklyPrice: toNumber(price.price) || 0,
+                                        currency: price.currency || 'EUR',
+                                        discount: price.discount ? toNumber(price.discount) : 0,
+                                        discountType: price.discountType || 'percentage'
+                                    }))
+                                    : [],
+                                // Services from seasonSpecificData (correct location according to Nausys API)
+                                services: yachtServices,
+                                // Obligatory extras from services (filtered from services array)
+                                obligatoryExtras: yachtServices.filter(service => service.isObligatory),
                                 showers: fullYacht.showers ? toNumber(fullYacht.showers) : undefined,
                                 showersCrew: fullYacht.showersCrew ? toNumber(fullYacht.showersCrew) : undefined,
                                 recommendedPersons: fullYacht.recommendedPersons ? toNumber(fullYacht.recommendedPersons) : undefined,
@@ -340,16 +442,32 @@ export const syncYachtData = async () => {
                                 modelVirtualLength: modelSpecs?.virtualLength,
                                 
                                 // Equipment mapping from Nausys API
-                                standardEquipment: fullYacht.standardYachtEquipment ? fullYacht.standardYachtEquipment.map((eq: any) => ({
+                                standardEquipment: fullYacht.standardYachtEquipment ? await populateEquipmentNames(fullYacht.standardYachtEquipment.map((eq: any) => ({
                                     id: eq.id,
-                                    name: { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' }, // Will be populated from equipment catalogue
+                                    equipmentId: eq.equipmentId,
                                     category: 'Standard',
                                     quantity: eq.quantity,
                                     isStandard: true,
                                     isOptional: false,
                                     highlight: eq.highlight || false,
                                     comment: eq.comment || {}
-                                })) : [],
+                                }))) : [],
+                                
+                                // Optional equipment mapping from season-specific data
+                                optionalEquipment: fullYacht.seasonSpecificData && fullYacht.seasonSpecificData.length > 0 
+                                    ? fullYacht.seasonSpecificData[0].additionalYachtEquipment 
+                                        ? await populateEquipmentNames(fullYacht.seasonSpecificData[0].additionalYachtEquipment.map((eq: any) => ({
+                                            id: eq.id,
+                                            equipmentId: eq.equipmentId,
+                                            category: 'Optional',
+                                            quantity: eq.quantity || 1,
+                                            isStandard: false,
+                                            isOptional: true,
+                                            highlight: eq.highlight || false,
+                                            comment: eq.comment || {}
+                                        })))
+                                        : []
+                                    : [],
                                 
                                 // Pictures mapping from Nausys API with size parameters
                                 picturesUrl: fullYacht.picturesURL ? fullYacht.picturesURL.map((url: string) => {
@@ -380,7 +498,31 @@ export const syncYachtData = async () => {
                             },
                             { upsert: true, new: true }
                         );
+
+                        // Save yacht services to YachtService collection
+                        await saveYachtServices(fullYacht.id, yachtServices);
                         console.log(`Saved yacht: ${fullYacht.id} for company ${company.id}`);
+                        
+                        // Sync crew member details if yacht has crew
+                        if (fullYacht.crewMemberIds && fullYacht.crewMemberIds.length > 0) {
+                            console.log(`Syncing crew members for yacht ${fullYacht.id}...`);
+                            const crewMembers = await syncCrewMemberDetails(fullYacht.crewMemberIds);
+                            
+                            // Link crew members to yacht
+                            if (crewMembers.length > 0) {
+                                // Get the MongoDB ObjectIds for the crew members
+                                const crewMemberDocs = await CrewMember.find({ 
+                                    id: { $in: fullYacht.crewMemberIds } 
+                                }).select('_id');
+                                const crewMemberIds = crewMemberDocs.map(doc => doc._id);
+                                
+                                await Yacht.findOneAndUpdate(
+                                    { id: fullYacht.id },
+                                    { crewMembers: crewMemberIds }
+                                );
+                                console.log(`Linked ${crewMembers.length} crew members to yacht ${fullYacht.id}`);
+                            }
+                        }
                     }
                 } else if (yachts?.yachtIDs) {
                     // If we only got yacht IDs, fetch each yacht individually
@@ -425,8 +567,8 @@ export const syncYachtData = async () => {
                                     modelId: yacht.yachtModelId, // ✅ Fix: Map yachtModelId to modelId
                                     name: toMultilingualText(yacht.name),
                                     description: yacht.description ? toMultilingualText(yacht.description) : { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' },
-                                    highlights: yacht.highlightsIntText ? toMultilingualText(yacht.highlightsIntText) : (yacht.highlights ? { textEN: yacht.highlights, textDE: yacht.highlights, textFR: yacht.highlights, textIT: yacht.highlights, textES: yacht.highlights, textHR: yacht.highlights } : { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' }),
-                                    note: toMultilingualText(yacht.note),
+                                    highlights: yacht.highlightsIntText || toMultilingualText(yacht.highlights),
+                                    note: yacht.noteIntText || toMultilingualText(yacht.note),
                                     // Convert numeric fields that might come as strings from API
                                     length: toNumber(yacht.length || modelSpecs?.loa), // Use yacht.length or fallback to model.loa
                                     cabins: toNumber(yacht.cabins),
@@ -448,6 +590,50 @@ export const syncYachtData = async () => {
                                     depositWhenInsured: yacht.depositWhenInsured ? toNumber(yacht.depositWhenInsured) : undefined,
                                     crewCount: yacht.crewCount ? toNumber(yacht.crewCount) : undefined,
                                     maxDiscountFromCommission: yacht.maxDiscountFromCommission ? toNumber(yacht.maxDiscountFromCommission) : undefined,
+                                    // Additional fields for API response
+                                    totalPeople: yacht.berthsTotal ? toNumber(yacht.berthsTotal) : undefined,
+                                    details: yacht.description ? toMultilingualText(yacht.description) : (yacht.highlights ? toMultilingualText(yacht.highlights) : undefined),
+                                    images: yacht.picturesURL || [],
+                                    // Pricing data from season specific data
+                                    pricing: yacht.seasonSpecificData && yacht.seasonSpecificData.length > 0 && yacht.seasonSpecificData[0].prices
+                                        ? yacht.seasonSpecificData[0].prices.map((price: any) => ({
+                                            period: price.type || 'weekly',
+                                            startDate: price.dateFrom || '',
+                                            endDate: price.dateTo || '',
+                                            weeklyPrice: toNumber(price.price) || 0,
+                                            currency: price.currency || 'EUR',
+                                            discount: price.discount ? toNumber(price.discount) : 0,
+                                            discountType: price.discountType || 'percentage'
+                                        }))
+                                        : [],
+                                    // Services from yacht base
+                                    services: yacht.services && yacht.services.length > 0
+                                        ? yacht.services.map((service: any) => ({
+                                            id: service.serviceId || service.id,
+                                            name: toMultilingualText(service.description || service.name),
+                                            description: toMultilingualText(service.description || service.name),
+                                            price: toNumber(service.price) || 0,
+                                            currency: service.currency || 'EUR',
+                                            priceMeasure: service.priceMeasure || 'per booking',
+                                            isObligatory: service.obligatory === true,
+                                            isOptional: service.obligatory !== true
+                                        }))
+                                        : [],
+                                    // Obligatory extras from services
+                                    obligatoryExtras: yacht.services && yacht.services.length > 0
+                                        ? yacht.services
+                                            .filter((service: any) => service.obligatory === true)
+                                            .map((service: any) => ({
+                                                id: service.serviceId || service.id,
+                                                name: toMultilingualText(service.description || service.name),
+                                                description: toMultilingualText(service.description || service.name),
+                                                price: toNumber(service.price) || 0,
+                                                currency: service.currency || 'EUR',
+                                                priceMeasure: service.priceMeasure || 'per booking',
+                                                isObligatory: true,
+                                                isOptional: false
+                                            }))
+                                        : [],
                                     showers: yacht.showers ? toNumber(yacht.showers) : undefined,
                                     showersCrew: yacht.showersCrew ? toNumber(yacht.showersCrew) : undefined,
                                     recommendedPersons: yacht.recommendedPersons ? toNumber(yacht.recommendedPersons) : undefined,
@@ -474,14 +660,30 @@ export const syncYachtData = async () => {
                                     modelVirtualLength: modelSpecs?.virtualLength,
                                     
                                     // Equipment mapping from Nausys API
-                                    standardEquipment: yacht.standardYachtEquipment ? yacht.standardYachtEquipment.map((eq: any) => ({
+                                    standardEquipment: yacht.standardYachtEquipment ? await populateEquipmentNames(yacht.standardYachtEquipment.map((eq: any) => ({
                                         id: eq.id,
-                                        name: { textEN: '', textDE: '', textFR: '', textIT: '', textES: '', textHR: '' }, // Will be populated from equipment catalogue
+                                        equipmentId: eq.equipmentId,
                                         category: 'Standard',
                                         quantity: eq.quantity || 1,
                                         isStandard: true,
                                         isOptional: false
-                                    })) : [],
+                                    }))) : [],
+                                    
+                                    // Optional equipment mapping from season-specific data
+                                    optionalEquipment: yacht.seasonSpecificData && yacht.seasonSpecificData.length > 0 
+                                        ? yacht.seasonSpecificData[0].additionalYachtEquipment 
+                                            ? await populateEquipmentNames(yacht.seasonSpecificData[0].additionalYachtEquipment.map((eq: any) => ({
+                                                id: eq.id,
+                                                equipmentId: eq.equipmentId,
+                                                category: 'Optional',
+                                                quantity: eq.quantity || 1,
+                                                isStandard: false,
+                                                isOptional: true,
+                                                highlight: eq.highlight || false,
+                                                comment: eq.comment || {}
+                                            })))
+                                            : []
+                                        : [],
                                     
                                     // Pictures mapping from Nausys API
                                     picturesUrl: yacht.picturesURL || [],
@@ -519,6 +721,15 @@ export const syncYachtData = async () => {
                                     flagsid: yacht.flagsid || [],
                                     canMakeBookingFixed: yacht.canMakeBookingFixed || false,
                                     seasonSpecificData: yacht.seasonSpecificData || [],
+                                    seasonalPricing: yacht.seasonSpecificData && yacht.seasonSpecificData.length > 0
+                                        ? yacht.seasonSpecificData.map((season: any) => ({
+                                            seasonId: season.seasonId || season.id,
+                                            seasonName: season.seasonName || season.name,
+                                            startDate: season.startDate || season.dateFrom,
+                                            endDate: season.endDate || season.dateTo,
+                                            prices: season.prices || []
+                                        }))
+                                        : [],
                                     euminia: yacht.euminia || undefined,
                                     
                                     // Video fields (as strings, not arrays)
@@ -531,6 +742,27 @@ export const syncYachtData = async () => {
                                 { upsert: true, new: true }
                             );
                             console.log(`Saved yacht: ${yacht.id} for company ${company.id}`);
+                            
+                            // Sync crew member details if yacht has crew
+                            if (yacht.crewMemberIds && yacht.crewMemberIds.length > 0) {
+                                console.log(`Syncing crew members for yacht ${yacht.id}...`);
+                                const crewMembers = await syncCrewMemberDetails(yacht.crewMemberIds);
+                                
+                                // Link crew members to yacht
+                                if (crewMembers.length > 0) {
+                                    // Get the MongoDB ObjectIds for the crew members
+                                    const crewMemberDocs = await CrewMember.find({ 
+                                        id: { $in: yacht.crewMemberIds } 
+                                    }).select('_id');
+                                    const crewMemberIds = crewMemberDocs.map(doc => doc._id);
+                                    
+                                    await Yacht.findOneAndUpdate(
+                                        { id: yacht.id },
+                                        { crewMembers: crewMemberIds }
+                                    );
+                                    console.log(`Linked ${crewMembers.length} crew members to yacht ${yacht.id}`);
+                                }
+                            }
                         }
                     } else {
                         console.log(`No yacht details found for company ${company.id}`);
@@ -583,6 +815,35 @@ export const syncYachtData = async () => {
     } catch (error) {
         console.error('Error syncing yacht data:', error);
         throw error;
+    }
+};
+
+// Helper function to save yacht services to YachtService collection
+const saveYachtServices = async (yachtId: number, services: any[]) => {
+    if (!services || services.length === 0) {
+        return;
+    }
+
+    try {
+        // Delete existing services for this yacht
+        await YachtService.deleteMany({ yachtId });
+
+        // Save new services
+        for (const service of services) {
+            await YachtService.findOneAndUpdate(
+                { id: service.id },
+                {
+                    ...service,
+                    yachtId,
+                    category: 'General', // Default category
+                    updatedAt: new Date()
+                },
+                { upsert: true, new: true }
+            );
+        }
+        console.log(`Saved ${services.length} services for yacht ${yachtId}`);
+    } catch (error) {
+        console.error(`Error saving services for yacht ${yachtId}:`, error);
     }
 };
 
@@ -1510,6 +1771,53 @@ export const syncFreeCabinPackages = async (periodFrom: string, periodTo: string
         console.log('Free cabin packages sync completed');
     } catch (error) {
         console.error('Error syncing free cabin packages:', error);
+        throw error;
+    }
+};
+
+// Sync crew member details
+export const syncCrewMemberDetails = async (crewMemberIds: number[]) => {
+    try {
+        const crewMembers = [];
+        
+        for (const crewMemberId of crewMemberIds) {
+            try {
+                console.log(`Fetching crew member details for ID: ${crewMemberId}`);
+                const crewMemberData = await api.getCrewMember(crewMemberId);
+                
+                if (crewMemberData && crewMemberData.status === 'OK') {
+                    const crewMember = {
+                        id: crewMemberData.id,
+                        name: crewMemberData.name || '',
+                        surname: crewMemberData.surname || '',
+                        crewRole: crewMemberData.crewRole || '',
+                        livingPlace: crewMemberData.livingPlace || '',
+                        summary: crewMemberData.summary || '',
+                        photoUrl: crewMemberData.photoUrl || '',
+                        languages: crewMemberData.languages || []
+                    };
+                    
+                    // Save or update crew member (using existing database connection)
+                    await CrewMember.findOneAndUpdate(
+                        { id: crewMember.id },
+                        crewMember,
+                        { upsert: true, new: true }
+                    );
+                    
+                    crewMembers.push(crewMember);
+                    console.log(`Saved crew member: ${crewMember.name} ${crewMember.surname} (${crewMember.crewRole})`);
+                } else {
+                    console.warn(`No crew member data found for ID: ${crewMemberId}`);
+                }
+            } catch (error) {
+                console.error(`Error fetching crew member ${crewMemberId}:`, error instanceof Error ? error.message : String(error));
+                // Continue with other crew members even if one fails
+            }
+        }
+        
+        return crewMembers;
+    } catch (error) {
+        console.error('Error syncing crew member details:', error);
         throw error;
     }
 };
