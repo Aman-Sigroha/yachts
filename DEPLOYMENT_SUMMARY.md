@@ -12,6 +12,7 @@
 - **🔧 TypeScript Fixed**: All compilation errors resolved with proper type definitions
 - **🌍 Multilingual Equipment Names**: Equipment names now available in 20+ languages with proper API response formatting
 - **🔧 Equipment API Fixed**: Both standard and optional equipment now return complete multilingual names in API responses
+- **🛠️ Yacht Services API**: Complete yacht services implementation with multilingual support (20+ languages) and proper data extraction from seasonSpecificData
 
 ## 🚀 **What Was Deployed**
 
@@ -33,11 +34,18 @@
 - **Cabin Charter API**: Complete API for cabin charter bases and companies
 - **Free Cabin Charter API**: Real-time cabin charter package availability
 - **Yacht Equipment API**: Detailed equipment information
-- **Yacht Services API**: Available services with pricing
+- **Yacht Services API**: Available services with pricing and multilingual support
 - **Yacht Pricing API**: Seasonal pricing information
 - **Yacht Ratings API**: Customer ratings and reviews
 
-### **4. Production Infrastructure**
+### **4. Yacht Services Implementation**
+- **Service Data Extraction**: Fixed services extraction from `seasonSpecificData[].services[]` in Nausys API
+- **Service Name Population**: Added `populateServiceNames()` function to resolve service names from service catalogue
+- **YachtService Collection**: Services now saved to separate YachtService collection for better data management
+- **Multilingual Service Names**: Service names available in 20+ languages (EN, DE, FR, IT, ES, HR, CZ, HU, LT, LV, NL, NO, PL, RU, SE, SI, SK, TR)
+- **Complete Service Data**: Services include all required fields: `id`, `name`, `price`, `currency`, `priceMeasure`, `isObligatory`, `isOptional`, `description`
+
+### **5. Production Infrastructure**
 - **AWS EC2 Deployment**: Production server with systemd service
 - **Automated Sync**: Daily data synchronization with Nausys API v6
 - **TypeScript Compilation**: All compilation errors resolved

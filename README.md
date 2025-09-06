@@ -16,6 +16,7 @@ A comprehensive Node.js/TypeScript API for yacht charter management with advance
 - **🔍 Advanced Filtering**: 50+ filter parameters including charter type, propulsion type, model specifications, and equipment filters
 - **⭐ Yacht Ratings API**: Complete euminia ratings system with cleanliness, equipment, service, and price performance scores
 - **🔧 Equipment & Services Sync**: Fixed data extraction from Nausys API - now properly syncs yacht equipment, services, and pricing
+- **🛠️ Yacht Services API**: Complete yacht services implementation with multilingual support (20+ languages) and proper data extraction from seasonSpecificData
 - **📊 Real-time Cabin Charter Data**: 17 active cabin charter packages with comprehensive pricing and availability
 - **🖼️ Sized Pictures**: All yacht pictures now include `?w=600&h=600` parameters for consistent sizing
 - **⚓ Complete Equipment Data**: Standard equipment now properly populated from Nausys API
@@ -131,6 +132,53 @@ npm start
 - `GET /api/yacht-ratings/:id` - Get specific rating details
 - `GET /api/yacht-ratings/yacht/:yachtId` - Get ratings for specific yacht
 - `GET /api/yacht-ratings/summary` - Get rating summary statistics
+
+### **Yacht Services with Multilingual Support**
+The yacht services API now includes comprehensive service data with multilingual names:
+
+```bash
+# Example yacht services response with multilingual names
+{
+  "id": 119044,
+  "name": {
+    "textEN": "100% fuel used",
+    "textDE": "100% der Treibstoffkosten",
+    "textFR": "100% du carburant utilisé",
+    "textIT": "100% di carburante consumato",
+    "textES": "100% del combustible usado",
+    "textHR": "100% potrošenog goriva",
+    "textCZ": "100% spotřebovaného paliva",
+    "textHU": "100% felhasznált üzemanyag",
+    "textLT": "100% sunaudoto kuro",
+    "textLV": "100% izmantotā degviela",
+    "textNL": "100% gebruikte brandstof",
+    "textNO": "100% brukt drivstoff",
+    "textPL": "100% zużytego paliwa",
+    "textRU": "100% использованного топлива",
+    "textSE": "100% använt bränsle",
+    "textSI": "100% porabljenega goriva",
+    "textSK": "100% spotrebovaného paliva",
+    "textTR": "100% kullanılan yakıt"
+  },
+  "price": 0,
+  "currency": "EUR",
+  "priceMeasure": "per booking",
+  "isObligatory": false,
+  "isOptional": true,
+  "description": {
+    "textEN": "100% fuel used",
+    "textDE": "100% der Treibstoffkosten",
+    "textFR": "100% du carburant utilisé",
+    "textIT": "100% di carburante consumato",
+    "textES": "100% del combustible usado",
+    "textHR": "100% potrošenog goriva"
+  }
+}
+```
+
+**Supported Languages**: English, German, French, Italian, Spanish, Croatian, Czech, Hungarian, Lithuanian, Latvian, Dutch, Norwegian, Polish, Russian, Swedish, Slovenian, Slovak, Turkish
+
+**Service Data Source**: Services are extracted from `seasonSpecificData[].services[]` in the Nausys API and populated with names from the service catalogue API.
 
 ### **Equipment Names with Multilingual Support**
 The yacht API now includes comprehensive equipment data with multilingual names:

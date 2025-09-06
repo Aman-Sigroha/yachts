@@ -5,6 +5,27 @@ All notable changes to the Yacht Charter API project will be documented in this 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.3] - 2025-09-05
+
+### 🛠️ Yacht Services Implementation
+
+### ⚓ Added
+- **Yacht Services API**: Complete yacht services implementation with multilingual support
+- **Service Data Extraction**: Fixed services extraction from `seasonSpecificData[].services[]` in Nausys API
+- **Service Name Population**: Added `populateServiceNames()` function to resolve service names from service catalogue
+- **YachtService Collection**: Services now saved to separate YachtService collection for better data management
+- **Multilingual Service Names**: Service names available in 20+ languages (EN, DE, FR, IT, ES, HR, CZ, HU, LT, LV, NL, NO, PL, RU, SE, SI, SK, TR)
+
+### 🔧 Fixed
+- **Service Data Source**: Corrected services extraction from `fullYacht.services` to `seasonSpecificData[].services[]`
+- **Service Name Resolution**: Services now properly populated with names from service catalogue using `serviceId`
+- **Service Data Structure**: Services now include all required fields: `id`, `name`, `price`, `currency`, `priceMeasure`, `isObligatory`, `isOptional`, `description`
+
+### ✅ Improved
+- **Yacht API Response**: Yacht endpoints now include complete services array with multilingual names
+- **Data Sync Process**: Enhanced yacht sync to properly handle services data extraction and saving
+- **Service Management**: Services now properly managed in separate collection with yacht associations
+
 ## [4.0.2] - 2025-09-05
 
 ### 🔧 Bug Fixes & Improvements
